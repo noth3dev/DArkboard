@@ -1,0 +1,562 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { getSupabase, type Expense } from "@/lib/supabase"
+import { useAuth } from "@/lib/auth-context"
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  User,
+  Download,
+  LogOut,
+  Search,
+  TrendingUp,
+  TrendingDown,
+  Filter,
+  Eye,
+} from "lucide-react"
+
+type FilterType = "all" | "income" | "expense"
+
+export function ExpenseTable() {
+  const router = useRouter()
+  const { user, signOut } = useAuth()
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({
+    date: "",
+    item: "",
+    amount: "",
+    user_id: "",
+    type: "expense" as "income" | "expense",
+    description: "",
+  })
+  const [newExpense, setNewExpense] = useState({
+    date: new Date().toISOString().split("T")[0],
+    item: "",
+    amount: "",
+    user_id: "",
+    type: "expense" as "income" | "expense",
+    description: "",
+  })
+  const [showAddForm, setShowAddForm] = useState(false)
+
+  const [filterType, setFilterType] = useState<FilterType>("all")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [userFilter, setUserFilter] = useState("")
+
+  useEffect(() => {
+    fetchExpenses()
+  }, [])
+
+  async function fetchExpenses() {
+    try {
+      const supabase = getSupabase()
+      const { data, error } = await supabase.from("expenses").select("*").order("date", { ascending: false })
+
+      if (error) throw error
+      setExpenses(data || [])
+    } catch (err) {
+      console.error("Error fetching expenses:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleAdd() {
+    if (!newExpense.date || !newExpense.item || !newExpense.amount) return
+
+    try {
+      const supabase = getSupabase()
+      const { error } = await supabase.from("expenses").insert({
+        date: newExpense.date,
+        item: newExpense.item,
+        amount: Math.abs(Number.parseInt(newExpense.amount)),
+        user_id: newExpense.user_id || null,
+        type: newExpense.type,
+        description: newExpense.description || null,
+      })
+
+      if (error) throw error
+      setNewExpense({
+        date: new Date().toISOString().split("T")[0],
+        item: "",
+        amount: "",
+        user_id: "",
+        type: "expense",
+        description: "",
+      })
+      setShowAddForm(false)
+      fetchExpenses()
+    } catch (err) {
+      console.error("Error adding expense:", err)
+    }
+  }
+
+  async function handleUpdate(id: string) {
+    if (!editForm.date || !editForm.item || !editForm.amount) return
+
+    try {
+      const supabase = getSupabase()
+      const { error } = await supabase
+        .from("expenses")
+        .update({
+          date: editForm.date,
+          item: editForm.item,
+          amount: Math.abs(Number.parseInt(editForm.amount)),
+          user_id: editForm.user_id || null,
+          type: editForm.type,
+          description: editForm.description || null,
+        })
+        .eq("id", id)
+
+      if (error) throw error
+      setEditingId(null)
+      fetchExpenses()
+    } catch (err) {
+      console.error("Error updating expense:", err)
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("정말 삭제하시겠습니까?")) return
+    try {
+      const supabase = getSupabase()
+      const { error } = await supabase.from("expenses").delete().eq("id", id)
+
+      if (error) throw error
+      fetchExpenses()
+    } catch (err) {
+      console.error("Error deleting expense:", err)
+    }
+  }
+
+  function startEdit(expense: Expense) {
+    setEditingId(expense.id)
+    setEditForm({
+      date: expense.date,
+      item: expense.item,
+      amount: expense.amount.toString(),
+      user_id: expense.user_id || "",
+      type: expense.type || "expense",
+      description: expense.description || "",
+    })
+  }
+
+  const filteredExpenses = expenses.filter((expense) => {
+    const matchesType = filterType === "all" || expense.type === filterType
+    const matchesSearch =
+      searchQuery === "" ||
+      expense.item.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesUser = userFilter === "" || expense.user_id?.toLowerCase().includes(userFilter.toLowerCase())
+    return matchesType && matchesSearch && matchesUser
+  })
+
+  const totalIncome = filteredExpenses.filter((e) => e.type === "income").reduce((sum, e) => sum + Number(e.amount), 0)
+  const totalExpense = filteredExpenses
+    .filter((e) => e.type === "expense")
+    .reduce((sum, e) => sum + Number(e.amount), 0)
+  const netTotal = totalIncome - totalExpense
+
+  // 고유 사용자 목록
+  const uniqueUsers = [...new Set(expenses.map((e) => e.user_id).filter(Boolean))]
+
+  function formatCurrency(amount: number) {
+    return new Intl.NumberFormat("ko-KR").format(Math.abs(amount)) + "원"
+  }
+
+  function exportToExcel() {
+    const headers = ["날짜", "항목", "유형", "금액", "사용자", "설명"]
+    const rows = filteredExpenses.map((expense) => [
+      expense.date,
+      expense.item,
+      expense.type === "income" ? "수입" : "지출",
+      expense.amount.toString(),
+      expense.user_id || "",
+      expense.description || "",
+    ])
+
+    rows.push(["", "", "수입 합계", totalIncome.toString(), "", ""])
+    rows.push(["", "", "지출 합계", totalExpense.toString(), "", ""])
+    rows.push(["", "", "순 합계", netTotal.toString(), "", ""])
+
+    const BOM = "\uFEFF"
+    const csvContent =
+      BOM + [headers.join(","), ...rows.map((row) => row.map((cell) => `"${cell}"`).join(","))].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `지출내역_${new Date().toISOString().split("T")[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleSignOut() {
+    await signOut()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-black">
+        <div className="text-neutral-400">로딩 중...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-white p-6 md:p-12">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-light tracking-tight">지출 내역</h1>
+            <p className="text-sm text-neutral-500 mt-1">{user?.email}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportToExcel}
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-md border border-neutral-800 hover:bg-neutral-800 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              내보내기
+            </button>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              추가
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 px-4 py-2 text-neutral-400 hover:text-white text-sm transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
+            <div className="flex items-center gap-2 text-green-500 mb-1">
+              <TrendingUp className="w-4 h-4" />
+              <span className="text-xs uppercase tracking-wider">수입</span>
+            </div>
+            <p className="text-xl font-mono text-white">+{formatCurrency(totalIncome)}</p>
+          </div>
+          <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
+            <div className="flex items-center gap-2 text-red-500 mb-1">
+              <TrendingDown className="w-4 h-4" />
+              <span className="text-xs uppercase tracking-wider">지출</span>
+            </div>
+            <p className="text-xl font-mono text-white">-{formatCurrency(totalExpense)}</p>
+          </div>
+          <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
+            <div className="flex items-center gap-2 text-neutral-400 mb-1">
+              <span className="text-xs uppercase tracking-wider">순 합계</span>
+            </div>
+            <p className={`text-xl font-mono ${netTotal >= 0 ? "text-green-500" : "text-red-500"}`}>
+              {netTotal >= 0 ? "+" : "-"}
+              {formatCurrency(netTotal)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+            <input
+              type="text"
+              placeholder="항목 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 bg-neutral-950 border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+            />
+          </div>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+            <select
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+              className="pl-10 pr-8 py-2 bg-neutral-950 border border-neutral-800 rounded-md text-white focus:outline-none focus:border-neutral-600 appearance-none min-w-[140px]"
+            >
+              <option value="">모든 사용자</option>
+              {uniqueUsers.map((user) => (
+                <option key={user} value={user || ""}>
+                  {user}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-1 p-1 bg-neutral-950 border border-neutral-800 rounded-md">
+            <button
+              onClick={() => setFilterType("all")}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded transition-colors ${filterType === "all" ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+                }`}
+            >
+              <Filter className="w-3 h-3" />
+              전체
+            </button>
+            <button
+              onClick={() => setFilterType("income")}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded transition-colors ${filterType === "income" ? "bg-green-600 text-white" : "text-neutral-400 hover:text-white"
+                }`}
+            >
+              <TrendingUp className="w-3 h-3" />
+              수입
+            </button>
+            <button
+              onClick={() => setFilterType("expense")}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded transition-colors ${filterType === "expense" ? "bg-red-600 text-white" : "text-neutral-400 hover:text-white"
+                }`}
+            >
+              <TrendingDown className="w-3 h-3" />
+              지출
+            </button>
+          </div>
+        </div>
+
+        {/* Add Form */}
+        {showAddForm && (
+          <div className="mb-6 p-4 border border-neutral-800 rounded-lg bg-neutral-950">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <input
+                type="date"
+                value={newExpense.date}
+                onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white focus:outline-none focus:border-neutral-600"
+              />
+              <input
+                type="text"
+                placeholder="항목"
+                value={newExpense.item}
+                onChange={(e) => setNewExpense({ ...newExpense, item: e.target.value })}
+                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="금액 (+수입 / -지출)"
+                  value={newExpense.amount}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    let newType = newExpense.type
+                    if (val.startsWith("+")) newType = "income"
+                    if (val.startsWith("-")) newType = "expense"
+                    setNewExpense({ ...newExpense, amount: val, type: newType })
+                  }}
+                  className={`w-full px-3 py-2 bg-black border border-neutral-800 rounded-md placeholder-neutral-600 focus:outline-none focus:border-neutral-600 ${newExpense.type === "income" ? "text-green-500" : "text-red-500"
+                    }`}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <input
+                type="text"
+                placeholder="사용자"
+                value={newExpense.user_id}
+                onChange={(e) => setNewExpense({ ...newExpense, user_id: e.target.value })}
+                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+              />
+              <input
+                type="text"
+                placeholder="설명 (선택사항)"
+                value={newExpense.description}
+                onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 col-span-2"
+              />
+
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleAdd}
+                className="px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="border border-neutral-800 rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-neutral-800 bg-neutral-950">
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  날짜
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  항목
+                </th>
+                <th className="px-6 py-4 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  유형
+                </th>
+                <th className="px-6 py-4 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  금액
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    사용자
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider w-28">
+                  작업
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-800">
+              {filteredExpenses.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-neutral-600">
+                    데이터가 없습니다
+                  </td>
+                </tr>
+              ) : (
+                filteredExpenses.map((expense) => (
+                  <tr key={expense.id} className="hover:bg-neutral-950 transition-colors">
+                    {editingId === expense.id ? (
+                      <>
+                        <td className="px-6 py-4">
+                          <input
+                            type="date"
+                            value={editForm.date}
+                            onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                            className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <input
+                            type="text"
+                            value={editForm.item}
+                            onChange={(e) => setEditForm({ ...editForm, item: e.target.value })}
+                            className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <select
+                            value={editForm.type}
+                            onChange={(e) => setEditForm({ ...editForm, type: e.target.value as "income" | "expense" })}
+                            className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
+                          >
+                            <option value="expense">지출</option>
+                            <option value="income">수입</option>
+                          </select>
+                        </td>
+                        <td className="px-6 py-4">
+                          <input
+                            type="text"
+                            value={editForm.amount}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              let newType = editForm.type
+                              if (val.startsWith("+")) newType = "income"
+                              if (val.startsWith("-")) newType = "expense"
+                              setEditForm({ ...editForm, amount: val, type: newType })
+                            }}
+                            className={`w-full px-2 py-1 bg-black border border-neutral-700 rounded text-sm text-right focus:outline-none focus:border-neutral-500 ${editForm.type === "income" ? "text-green-500" : "text-red-500"
+                              }`}
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <input
+                            type="text"
+                            value={editForm.user_id}
+                            onChange={(e) => setEditForm({ ...editForm, user_id: e.target.value })}
+                            placeholder="사용자"
+                            className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => handleUpdate(expense.id)}
+                              className="p-1.5 text-green-500 hover:bg-neutral-800 rounded transition-colors"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="p-1.5 text-neutral-500 hover:bg-neutral-800 rounded transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-6 py-4 text-sm text-neutral-300">{expense.date}</td>
+                        <td className="px-6 py-4 text-sm text-white">{expense.item}</td>
+                        <td className="px-6 py-4 text-center">
+                          {expense.type === "income" ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-600/20 text-green-500 text-xs rounded-full">
+                              <TrendingUp className="w-3 h-3" />
+                              수입
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600/20 text-red-500 text-xs rounded-full">
+                              <TrendingDown className="w-3 h-3" />
+                              지출
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right font-mono">
+                          <span className={expense.type === "income" ? "text-green-500" : "text-red-400"}>
+                            {expense.type === "income" ? "+" : "-"}
+                            {formatCurrency(expense.amount)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-neutral-400">{expense.user_id || "-"}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => router.push(`/expense/${expense.id}`)}
+                              className="p-1.5 text-neutral-600 hover:text-blue-400 hover:bg-neutral-800 rounded transition-colors"
+                              title="상세보기"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => startEdit(expense)}
+                              className="p-1.5 text-neutral-600 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(expense.id)}
+                              className="p-1.5 text-neutral-600 hover:text-red-500 hover:bg-neutral-800 rounded transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}

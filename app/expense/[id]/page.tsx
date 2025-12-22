@@ -108,7 +108,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-neutral-400">로딩 중...</div>
+        <div className="text-neutral-400">로딩 중..</div>
       </div>
     )
   }
@@ -187,8 +187,8 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                     type="button"
                     onClick={() => setEditForm({ ...editForm, type: "expense" })}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md border transition-colors ${editForm.type === "expense"
-                        ? "bg-red-600 border-red-600 text-white"
-                        : "bg-black border-neutral-800 text-neutral-400 hover:text-white"
+                      ? "bg-red-600 border-red-600 text-white"
+                      : "bg-black border-neutral-800 text-neutral-400 hover:text-white"
                       }`}
                   >
                     <TrendingDown className="w-5 h-5" />
@@ -198,8 +198,8 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                     type="button"
                     onClick={() => setEditForm({ ...editForm, type: "income" })}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md border transition-colors ${editForm.type === "income"
-                        ? "bg-green-600 border-green-600 text-white"
-                        : "bg-black border-neutral-800 text-neutral-400 hover:text-white"
+                      ? "bg-green-600 border-green-600 text-white"
+                      : "bg-black border-neutral-800 text-neutral-400 hover:text-white"
                       }`}
                   >
                     <TrendingUp className="w-5 h-5" />

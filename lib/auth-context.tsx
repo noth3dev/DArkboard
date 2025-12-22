@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { getSupabase } from "@/lib/supabase"
-import type { User } from "@supabase/supabase-js"
+import type { User, Session, AuthChangeEvent } from "@supabase/supabase-js"
 
 type AuthContextType = {
   user: User | null
@@ -22,15 +22,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabase()
 
     // 현재 세션 확인
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
+      setUser(data.session?.user ?? null)
       setLoading(false)
     })
 
     // 인증 상태 변경 감지
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null)
     })
 

@@ -38,7 +38,9 @@ export function AuthForm() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-light text-white text-center mb-8">지출 관리</h1>
+        <h1 className="text-2xl font-light text-white text-center mb-8">
+        <img src="/Darkboard.svg" alt="Darkboard" className="w-auto h-6" />
+        </h1>
 
         <div className="bg-neutral-950 border border-neutral-800 rounded-lg p-6">
           <div className="flex mb-6">

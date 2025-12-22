@@ -6,9 +6,7 @@ import { Header } from "@/components/header"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "지출 관리",
-  description: "미니멀한 지출 관리 앱",
-  generator: "v0.app",
+  title: "Darkboard",
   icons: {
     icon: [
       {

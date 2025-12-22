@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Mail, Lock, LogIn, UserPlus } from "lucide-react"
@@ -21,12 +20,16 @@ export function AuthForm() {
     setSuccess("")
     setLoading(true)
 
-    const result = isLogin ? await signIn(email, password) : await signUp(email, password)
+    try {
+      const result = isLogin ? await signIn(email, password) : await signUp(email, password)
 
-    if (result.error) {
-      setError(result.error)
-    } else if (!isLogin) {
-      setSuccess("가입 확인 이메일을 확인해주세요")
+      if (result.error) {
+        setError(result.error)
+      } else if (!isLogin) {
+        setSuccess("가입 확인 이메일을 확인해주세요")
+      }
+    } catch (err) {
+      setError("알 수 없는 오류가 발생했습니다")
     }
 
     setLoading(false)
@@ -42,24 +45,24 @@ export function AuthForm() {
             <button
               type="button"
               onClick={() => setIsLogin(true)}
-              className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${
-                isLogin ? "border-white text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
-              }`}
+              className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${isLogin ? "border-white text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
+                }`}
             >
               로그인
             </button>
             <button
               type="button"
               onClick={() => setIsLogin(false)}
-              className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${
-                !isLogin ? "border-white text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
-              }`}
+              className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${!isLogin ? "border-white text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
+                }`}
             >
               회원가입
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name selection logic removed */}
+
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
               <input

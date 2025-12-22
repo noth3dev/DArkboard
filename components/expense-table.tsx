@@ -27,7 +27,7 @@ type FilterType = "all" | "income" | "expense"
 
 export function ExpenseTable() {
   const router = useRouter()
-  const { user, signOut } = useAuth()
+  const { user, signOut, accessLevel } = useAuth()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -72,6 +72,9 @@ export function ExpenseTable() {
   }
 
   async function handleAdd() {
+    // access_level 1 이상만 추가 가능
+    if ((accessLevel ?? 0) < 1) return
+
     if (!newExpense.date || !newExpense.item || !newExpense.amount) return
 
     try {
@@ -102,6 +105,9 @@ export function ExpenseTable() {
   }
 
   async function handleUpdate(id: string) {
+    // access_level 1 이상만 수정 가능
+    if ((accessLevel ?? 0) < 1) return
+
     if (!editForm.date || !editForm.item || !editForm.amount) return
 
     try {
@@ -127,6 +133,9 @@ export function ExpenseTable() {
   }
 
   async function handleDelete(id: string) {
+    // access_level 2 이상만 삭제 가능
+    if ((accessLevel ?? 0) < 2) return
+
     if (!confirm("정말 삭제하시겠습니까?")) return
     try {
       const supabase = getSupabase()
@@ -140,6 +149,9 @@ export function ExpenseTable() {
   }
 
   function startEdit(expense: Expense) {
+    // access_level 1 이상만 인라인 수정 가능
+    if ((accessLevel ?? 0) < 1) return
+
     setEditingId(expense.id)
     setEditForm({
       date: expense.date,
@@ -232,13 +244,16 @@ export function ExpenseTable() {
               <Download className="w-4 h-4" />
               내보내기
             </button>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              추가
-            </button>
+            {/* access_level 1 이상만 추가 버튼 표시 */}
+            {(accessLevel ?? 0) >= 1 && (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                추가
+              </button>
+            )}
           </div>
         </div>
 
@@ -323,7 +338,8 @@ export function ExpenseTable() {
         </div>
 
         {/* Add Form */}
-        {showAddForm && (
+        {/* access_level 1 이상 + showAddForm 일 때만 추가 폼 표시 */}
+        {showAddForm && (accessLevel ?? 0) >= 1 && (
           <div className="mb-6 p-4 border border-neutral-800 rounded-lg bg-neutral-950">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <input
@@ -530,18 +546,24 @@ export function ExpenseTable() {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => startEdit(expense)}
-                              className="p-1.5 text-neutral-600 hover:text-white hover:bg-neutral-800 rounded transition-colors"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(expense.id)}
-                              className="p-1.5 text-neutral-600 hover:text-red-500 hover:bg-neutral-800 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {/* access_level 1 이상: 인라인 수정 버튼 */}
+                            {(accessLevel ?? 0) >= 1 && (
+                              <button
+                                onClick={() => startEdit(expense)}
+                                className="p-1.5 text-neutral-600 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            )}
+                            {/* access_level 2 이상: 삭제 버튼 */}
+                            {(accessLevel ?? 0) >= 2 && (
+                              <button
+                                onClick={() => handleDelete(expense.id)}
+                                className="p-1.5 text-neutral-600 hover:text-red-500 hover:bg-neutral-800 rounded transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </>

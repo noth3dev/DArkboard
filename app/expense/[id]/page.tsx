@@ -10,7 +10,7 @@ import { ArrowLeft, Calendar, FileText, User, TrendingUp, TrendingDown, Pencil, 
 export default function ExpenseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, accessLevel } = useAuth()
   const [expense, setExpense] = useState<Expense | null>(null)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -52,6 +52,9 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function handleUpdate() {
+    // access_level 1 이상만 수정 가능
+    if ((accessLevel ?? 0) < 1) return
+
     if (!editForm.date || !editForm.item || !editForm.amount) return
 
     try {
@@ -77,6 +80,9 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function handleDelete() {
+    // access_level 2 이상만 삭제 가능
+    if ((accessLevel ?? 0) < 2) return
+
     if (!confirm("정말 삭제하시겠습니까?")) return
     try {
       const supabase = getSupabase()
@@ -103,6 +109,20 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
 
   if (!user) {
     return <AuthForm />
+  }
+
+  // access_level 0: / 페이지만 접근 가능
+  if ((accessLevel ?? 0) === 0) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center text-neutral-400">
+          <p className="mb-4">이 페이지에 접근할 권한이 없습니다.</p>
+          <button onClick={() => router.push("/")} className="text-white underline">
+            대시보드로 돌아가기
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -157,20 +177,26 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
               </>
             ) : (
               <>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-md border border-neutral-800 hover:bg-neutral-800 transition-colors"
-                >
-                  <Pencil className="w-4 h-4" />
-                  수정
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-500 text-sm font-medium rounded-md hover:bg-red-600/30 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  삭제
-                </button>
+                {/* access_level 1 이상: 수정 가능 */}
+                {(accessLevel ?? 0) >= 1 && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-md border border-neutral-800 hover:bg-neutral-800 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    수정
+                  </button>
+                )}
+                {/* access_level 2 이상: 삭제 가능 */}
+                {(accessLevel ?? 0) >= 2 && (
+                  <button
+                    onClick={handleDelete}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-500 text-sm font-medium rounded-md hover:bg-red-600/30 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    삭제
+                  </button>
+                )}
               </>
             )}
           </div>

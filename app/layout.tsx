@@ -4,11 +4,14 @@ import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/lib/auth-context"
 import { Header } from "@/components/header"
 import "./globals.css"
-
 export const metadata: Metadata = {
   title: "Darkboard",
   icons: {
     icon: [
+      {
+        url: "/fav.svg",
+        type: "image/svg+xml",
+      },
       {
         url: "/icon-light-32x32.png",
         media: "(prefers-color-scheme: light)",
@@ -17,14 +20,11 @@ export const metadata: Metadata = {
         url: "/icon-dark-32x32.png",
         media: "(prefers-color-scheme: dark)",
       },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
     ],
     apple: "/apple-icon.png",
   },
 }
+
 
 export default function RootLayout({
   children,

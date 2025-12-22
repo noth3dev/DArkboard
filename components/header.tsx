@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
-import { CreditCard, Users, Folder, LogOut, Shield } from "lucide-react"
+import { CreditCard, Users, Folder, LogOut, Shield, Settings } from "lucide-react"
 
 export function Header() {
   const { user, signOut, accessLevel, profileName } = useAuth()
@@ -74,6 +74,14 @@ export function Header() {
             >
               <Folder className="w-4 h-4" />
             </Link>
+            {(accessLevel ?? 0) >= 2 && (
+              <Link
+                href="/management"
+                className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+              </Link>
+            )}
           </nav>
         )}
       </div>
@@ -88,7 +96,7 @@ export function Header() {
             <div
               className={`relative flex items-center gap-2 px-4 py-1.5 rounded-full border ${style.border} ${style.bg} backdrop-blur-sm`}
             >
-              <Shield className={`w-4 h-4 ${style.icon}`} />  
+              <Shield className={`w-4 h-4 ${style.icon}`} />
               <span className={`text-xs font-semibold ${style.value}`}>LV. {roman}</span>
             </div>
           </div>

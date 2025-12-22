@@ -340,71 +340,169 @@ export function ExpenseTable() {
         {/* Add Form */}
         {/* access_level 1 이상 + showAddForm 일 때만 추가 폼 표시 */}
         {showAddForm && (accessLevel ?? 0) >= 1 && (
-          <div className="mb-6 p-4 border border-neutral-800 rounded-lg bg-neutral-950">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <input
-                type="date"
-                value={newExpense.date}
-                onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white focus:outline-none focus:border-neutral-600"
-              />
-              <input
-                type="text"
-                placeholder="항목"
-                value={newExpense.item}
-                onChange={(e) => setNewExpense({ ...newExpense, item: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="금액 (+수입 / -지출)"
-                  value={newExpense.amount}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    let newType = newExpense.type
-                    if (val.startsWith("+")) newType = "income"
-                    if (val.startsWith("-")) newType = "expense"
-                    setNewExpense({ ...newExpense, amount: val, type: newType })
-                  }}
-                  className={`w-full px-3 py-2 bg-black border border-neutral-800 rounded-md placeholder-neutral-600 focus:outline-none focus:border-neutral-600 ${newExpense.type === "income" ? "text-green-500" : "text-red-500"
-                    }`}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="사용자"
-                value={newExpense.user_id}
-                onChange={(e) => setNewExpense({ ...newExpense, user_id: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
-              <input
-                type="text"
-                placeholder="설명 (선택사항)"
-                value={newExpense.description}
-                onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 col-span-2"
-              />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+            <div
+              className="relative w-full max-w-5xl bg-neutral-950 border border-neutral-800 rounded-[32px] overflow-hidden shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
+                {/* Left: Preview Section (Receipt Style) */}
+                <div className="hidden md:flex flex-1 bg-neutral-900/30 p-12 border-r border-neutral-800 flex-col items-center justify-center gap-8 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAdd}
-                className="px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
-              >
-                저장
-              </button>
+                  <div className="relative z-10 w-full max-w-[320px]">
+                    <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.3em] mb-8 text-center opacity-50">Transaction Preview</p>
+
+                    <div className="bg-white text-black p-8 rounded-3xl shadow-2xl space-y-6 relative overflow-hidden">
+                      {/* Receipt Top */}
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Merchant</p>
+                          <p className="text-xl font-black truncate max-w-[180px]">{newExpense.item || "---"}</p>
+                        </div>
+                        <div className={`p-2 rounded-xl ${newExpense.type === "income" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+                          {newExpense.type === "income" ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-dashed border-neutral-200">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="font-bold text-neutral-400 uppercase">Date</span>
+                          <span className="font-black">{newExpense.date || "----.--.--"}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span className="font-bold text-neutral-400 uppercase">User</span>
+                          <span className="font-black">{newExpense.user_id || "---"}</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-6 border-t border-dashed border-neutral-200">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1">Total Amount</p>
+                        <p className={`text-4xl font-black ${newExpense.type === "income" ? "text-green-600" : "text-black"}`}>
+                          {newExpense.amount ? (newExpense.amount.startsWith('+') || newExpense.amount.startsWith('-') ? '' : (newExpense.type === 'income' ? '+' : '-')) : ''}
+                          {newExpense.amount || "0"}
+                        </p>
+                      </div>
+
+                      {/* Receipt Bottom Notch */}
+                      <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                          <div key={i} className="w-3 h-3 bg-neutral-900/30 rounded-full" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Input Section */}
+                <div className="flex-1 p-8 flex flex-col bg-black overflow-y-auto custom-scrollbar">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-white text-black shadow-lg">
+                        <CreditCard className="w-4 h-4 font-bold" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-white tracking-tight uppercase">지출 내역</h2>
+                        <p className="text-[9px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5 opacity-60">Track your cashflow accurately</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowAddForm(false)}
+                      className="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-500 hover:text-white transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-6 flex-1">
+                    <div className="grid grid-cols-1 gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Title / Vendor</label>
+                        <input
+                          type="text"
+                          placeholder="어디에 사용하셨나요?"
+                          value={newExpense.item}
+                          onChange={(e) => setNewExpense({ ...newExpense, item: e.target.value })}
+                          className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Amount (Use +/- to set type)</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="예: -15,000 (지출), 50,000 (수입)"
+                            value={newExpense.amount}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              const newType = val.startsWith("-") ? "expense" : "income"
+                              setNewExpense({ ...newExpense, amount: val, type: newType })
+                            }}
+                            className={`w-full px-4 py-3.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-lg font-bold focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 ${newExpense.type === "income" ? "text-green-500" : "text-red-500"}`}
+                          />
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20">
+                            {newExpense.type === "income" ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Date</label>
+                        <input
+                          type="date"
+                          value={newExpense.date}
+                          onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-white transition-all [color-scheme:dark]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">User</label>
+                        <input
+                          type="text"
+                          placeholder="결제자 성함"
+                          value={newExpense.user_id}
+                          onChange={(e) => setNewExpense({ ...newExpense, user_id: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Note (Optional)</label>
+                      <textarea
+                        placeholder="상세 내용을 적어주세요"
+                        value={newExpense.description}
+                        onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                        rows={2}
+                        className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-8 mt-auto border-t border-neutral-800 flex gap-3">
+                    <button
+                      onClick={() => setShowAddForm(false)}
+                      className="flex-1 py-3 text-[9px] font-bold text-neutral-500 hover:text-white transition-all uppercase tracking-[0.1em]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAdd}
+                      disabled={!newExpense.item.trim() || !newExpense.amount}
+                      className="flex-[1.5] py-3 bg-white text-black text-[10px] font-bold rounded-xl hover:bg-neutral-200 transition-all shadow-lg disabled:opacity-20 active:scale-95 uppercase tracking-[0.1em]"
+                    >
+                      Record Transaction
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
+
 
         {/* Table */}
         <div className="border border-neutral-800 rounded-lg overflow-hidden">
@@ -462,15 +560,10 @@ export function ExpenseTable() {
                             className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
                           />
                         </td>
-                        <td className="px-6 py-4">
-                          <select
-                            value={editForm.type}
-                            onChange={(e) => setEditForm({ ...editForm, type: e.target.value as "income" | "expense" })}
-                            className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
-                          >
-                            <option value="expense">지출</option>
-                            <option value="income">수입</option>
-                          </select>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 ${editForm.type === "income" ? "bg-green-600/20 text-green-500" : "bg-red-600/20 text-red-500"} text-xs rounded-full`}>
+                            {editForm.type === "income" ? "수입" : "지출"}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <input
@@ -478,9 +571,7 @@ export function ExpenseTable() {
                             value={editForm.amount}
                             onChange={(e) => {
                               const val = e.target.value
-                              let newType = editForm.type
-                              if (val.startsWith("+")) newType = "income"
-                              if (val.startsWith("-")) newType = "expense"
+                              const newType = val.startsWith("-") ? "expense" : "income"
                               setEditForm({ ...editForm, amount: val, type: newType })
                             }}
                             className={`w-full px-2 py-1 bg-black border border-neutral-700 rounded text-sm text-right focus:outline-none focus:border-neutral-500 ${editForm.type === "income" ? "text-green-500" : "text-red-500"

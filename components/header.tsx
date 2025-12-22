@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
-import { CreditCard, Users, Folder, LogOut, Shield, Settings } from "lucide-react"
+import { CreditCard, Users, Folder, LogOut, Shield, Settings, Bell } from "lucide-react"
+import { NotificationCenter } from "./notification-center"
 
 export function Header() {
   const { user, signOut, accessLevel, profileName } = useAuth()
@@ -87,6 +88,8 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
+        <NotificationCenter />
+
         {/* ACCESS LEVEL 배지 (아이콘 + 레벨별 색상, 약한 글로우) */}
         <div className="hidden sm:flex items-center">
           <div className="relative">

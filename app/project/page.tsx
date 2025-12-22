@@ -5,7 +5,25 @@ import { AuthForm } from "@/components/auth-form"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
-import { Folder, ExternalLink, Calendar, Tag, Plus, Users, Clock } from "lucide-react"
+import {
+  Folder,
+  ExternalLink,
+  Calendar,
+  Tag,
+  Plus,
+  Users,
+  Clock,
+  LayoutGrid,
+  CalendarDays,
+  Columns3,
+  ChevronRight,
+  ClipboardList,
+  Lock,
+  Globe,
+  X,
+  Check,
+  UsersRound,
+} from "lucide-react"
 
 type TeamMember = {
   user_uuid: string
@@ -29,21 +47,35 @@ type Project = {
   deadline: string | null
   created_at: string
   members?: ProjectMember[]
+  task_count?: number
+  is_public?: boolean
+  created_by?: string
+  team_id?: string
+  team?: {
+    name: string
+  }
 }
 
 const statusConfig = {
-  active: { label: "운영 중", dot: "bg-white" },
-  development: { label: "개발 중", dot: "bg-neutral-400" },
-  planning: { label: "기획 중", dot: "bg-neutral-600" },
-  archived: { label: "보관됨", dot: "bg-neutral-700" },
+  active: { label: "운영 중", dot: "bg-white", order: 1 },
+  development: { label: "개발 중", dot: "bg-neutral-400", order: 2 },
+  planning: { label: "기획 중", dot: "bg-neutral-600", order: 3 },
+  archived: { label: "보관됨", dot: "bg-neutral-700", order: 4 },
 } as const
+
+type ViewMode = "grid" | "calendar" | "kanban"
 
 export default function ProjectPage() {
   const router = useRouter()
   const { user, loading, accessLevel } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
+  const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [showAddForm, setShowAddForm] = useState(false)
+  const [calendarDate, setCalendarDate] = useState(new Date())
+
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [allTeams, setAllTeams] = useState<any[]>([])
   const [newProject, setNewProject] = useState({
     name: "",
     description: "",
@@ -51,28 +83,48 @@ export default function ProjectPage() {
     url: "",
     tags: "",
     deadline: "",
+    is_public: true,
+    team_id: "",
+    members: [] as string[]
   })
 
   useEffect(() => {
-    if (user && (accessLevel ?? 0) >= 1) {
+    if (user) {
       fetchProjects()
+      fetchInitialData()
     }
-  }, [user, accessLevel])
+  }, [user])
+
+  async function fetchInitialData() {
+    try {
+      const supabase = getSupabase()
+      // 사용자 목록 조회
+      const { data: usersData } = await supabase.from("users").select("*").order("name")
+      setAllUsers(usersData || [])
+
+      // 팀 목록 조회
+      const { data: teamsData } = await supabase.from("teams").select("*").order("name")
+      setAllTeams(teamsData || [])
+    } catch (err) {
+      console.error("Error fetching initial data:", err)
+    }
+  }
 
   async function fetchProjects() {
     try {
+      setLoadingProjects(true)
       const supabase = getSupabase()
 
-      const { data: projectsData, error: projectsError } = await supabase
+      const { data, error } = await supabase
         .from("projects")
-        .select("*")
+        .select("*, team:teams(name)")
         .order("created_at", { ascending: false })
 
-      if (projectsError) throw projectsError
+      if (error) throw error
 
-      // 각 프로젝트의 멤버 조회
-      const projectsWithMembers = await Promise.all(
-        (projectsData || []).map(async (project: Project) => {
+      const projectsWithDetails = await Promise.all(
+        (data || []).map(async (project) => {
+          // 멤버 조회
           const { data: membersData } = await supabase
             .from("project_members")
             .select(`
@@ -82,18 +134,25 @@ export default function ProjectPage() {
             `)
             .eq("project_id", project.id)
 
+          // 태스크 수 조회
+          const { count } = await supabase
+            .from("project_tasks")
+            .select("*", { count: "exact", head: true })
+            .eq("project_id", project.id)
+
           return {
             ...project,
-            members: (membersData || []).map((m: { user_uuid: string; role: string | null; user: TeamMember | TeamMember[] }) => ({
+            members: (membersData || []).map((m: any) => ({
               user_uuid: m.user_uuid,
               role: m.role,
               user: Array.isArray(m.user) ? m.user[0] : m.user,
             })),
+            task_count: count || 0,
           }
         })
       )
 
-      setProjects(projectsWithMembers)
+      setProjects(projectsWithDetails)
     } catch (err) {
       console.error("Error fetching projects:", err)
     } finally {
@@ -112,32 +171,47 @@ export default function ProjectPage() {
         .map((t) => t.trim())
         .filter(Boolean)
 
-      const { error } = await supabase.from("projects").insert({
+      const { data, error } = await supabase.from("projects").insert({
         name: newProject.name.trim(),
         description: newProject.description.trim() || null,
         status: newProject.status,
         url: newProject.url.trim() || null,
         tags: tagsArray,
         deadline: newProject.deadline || null,
-      })
+        is_public: newProject.is_public,
+        created_by: user?.id,
+        team_id: newProject.team_id || null,
+      }).select().single()
 
       if (error) throw error
-      setNewProject({ name: "", description: "", status: "planning", url: "", tags: "", deadline: "" })
+
+      // 생성자를 고정 멤버로 등록하고 추가 선택된 멤버들도 등록
+      if (data) {
+        const memberIds = Array.from(new Set([user?.id, ...newProject.members])).filter(Boolean) as string[]
+        const memberInserts = memberIds.map(uid => ({
+          project_id: data.id,
+          user_uuid: uid,
+          role: uid === user?.id ? "manager" : "member"
+        }))
+
+        await supabase.from("project_members").insert(memberInserts)
+      }
+
+      setNewProject({ name: "", description: "", status: "planning", url: "", tags: "", deadline: "", is_public: true, team_id: "", members: [] })
       setShowAddForm(false)
       fetchProjects()
-    } catch (err) {
-      console.error("Error adding project:", err)
+    } catch (err: any) {
+      console.error("Error adding project:", err?.message || err)
+      alert(`프로젝트 추가 중 오류가 발생했습니다: ${err?.message || "알 수 없는 오류"}`)
     }
   }
 
-  // D-Day 계산
   function getDDay(deadline: string | null) {
     if (!deadline) return null
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const deadlineDate = new Date(deadline)
-    const diff = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    return diff
+    return Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
   }
 
   function formatDDay(dday: number | null) {
@@ -147,34 +221,6 @@ export default function ProjectPage() {
     return `D+${Math.abs(dday)}`
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-65px)] bg-black text-white">
-        <div className="text-neutral-400">로딩 중...</div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return <AuthForm />
-  }
-
-  if ((accessLevel ?? 0) === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-65px)] bg-black text-white">
-        <div className="text-center text-neutral-400">
-          <p className="mb-4">이 페이지에 접근할 권한이 없습니다.</p>
-          <a href="/" className="text-white underline">
-            대시보드로 돌아가기
-          </a>
-        </div>
-      </div>
-    )
-  }
-
-  const activeCount = projects.filter((p) => p.status === "active").length
-  const devCount = projects.filter((p) => p.status === "development").length
-
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString("ko-KR", {
       year: "numeric",
@@ -183,250 +229,313 @@ export default function ProjectPage() {
     })
   }
 
-  return (
-    <div className="min-h-[calc(100vh-65px)] bg-black text-white p-6 md:p-12">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800">
-              <Folder className="w-6 h-6 text-neutral-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-light tracking-tight">프로젝트</h1>
-              <p className="text-sm text-neutral-500 mt-0.5">
-                {activeCount}개 운영 중 · {devCount}개 개발 중
-              </p>
+  function getCalendarDays() {
+    const year = calendarDate.getFullYear()
+    const month = calendarDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const padding = firstDay.getDay()
+    const days: (Date | null)[] = []
+    for (let i = 0; i < padding; i++) days.push(null)
+    for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i))
+    return days
+  }
+
+  function getProjectsForDate(date: Date) {
+    const dateStr = date.toISOString().split("T")[0]
+    return projects.filter((p) => p.deadline === dateStr)
+  }
+
+  function nextMonth() { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1)) }
+  function prevMonth() { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1)) }
+
+  function ProjectCard({ project, index, compact = false }: { project: Project; index: number; compact?: boolean }) {
+    const status = statusConfig[project.status]
+    const dday = getDDay(project.deadline)
+    const ddayText = formatDDay(dday)
+
+    return (
+      <div
+        onClick={() => router.push(`/project/${project.id}`)}
+        className={`group relative rounded-xl border bg-neutral-950 border-neutral-800 hover:border-neutral-600 hover:bg-neutral-900/50 transition-all duration-300 cursor-pointer ${compact ? "p-3" : "p-6"}`}
+      >
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-2">
+            {!compact && (
+              <div className="p-1.5 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-400">
+                <Folder className="w-3.5 h-3.5" />
+              </div>
+            )}
+            <div className="flex flex-col">
+              <h3 className={`font-semibold text-white ${compact ? "text-sm" : "text-base"}`}>{project.name}</h3>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {project.team?.name && (
+                  <div className="flex items-center gap-1 text-[9px] text-blue-400 font-bold uppercase tracking-tight mr-1">
+                    <UsersRound className="w-2.5 h-2.5" />
+                    <span>{project.team.name}</span>
+                  </div>
+                )}
+                {project.is_public ? (
+                  <div className="flex items-center gap-1 text-[9px] text-green-400 opacity-70"><Globe className="w-2.5 h-2.5" /><span>전체 공개</span></div>
+                ) : (
+                  <div className="flex items-center gap-1 text-[9px] text-yellow-400 opacity-70"><Lock className="w-2.5 h-2.5" /><span>멤버 전용</span></div>
+                )}
+              </div>
             </div>
           </div>
-
-          {(accessLevel ?? 0) >= 1 && (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              추가
-            </button>
-          )}
         </div>
 
-        {/* Add Form */}
-        {showAddForm && (accessLevel ?? 0) >= 1 && (
-          <div className="mb-6 p-4 border border-neutral-800 rounded-lg bg-neutral-950 animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="프로젝트명"
-                value={newProject.name}
-                onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
-              <select
-                value={newProject.status}
-                onChange={(e) =>
-                  setNewProject({ ...newProject, status: e.target.value as Project["status"] })
-                }
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white focus:outline-none focus:border-neutral-600"
-              >
-                <option value="planning">기획 중</option>
-                <option value="development">개발 중</option>
-                <option value="active">운영 중</option>
-                <option value="archived">보관됨</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="URL (선택)"
-                value={newProject.url}
-                onChange={(e) => setNewProject({ ...newProject, url: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
-              <input
-                type="text"
-                placeholder="태그 (쉼표로 구분)"
-                value={newProject.tags}
-                onChange={(e) => setNewProject({ ...newProject, tags: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
-              <input
-                type="date"
-                placeholder="마감일"
-                value={newProject.deadline}
-                onChange={(e) => setNewProject({ ...newProject, deadline: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
-            </div>
-            <textarea
-              placeholder="설명 (선택)"
-              value={newProject.description}
-              onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-              rows={2}
-              className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 mb-4 resize-none"
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAddProject}
-                className="px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        )}
+        {!compact && project.description && <p className="text-sm text-neutral-400 mb-3 line-clamp-2">{project.description}</p>}
 
-        {/* Loading State */}
-        {loadingProjects ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-neutral-400">프로젝트 불러오는 중...</div>
+        <div className="flex items-center justify-between text-[10px] text-neutral-600 pt-2 border-t border-neutral-800/50">
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+            <span>{status.label}</span>
+            {ddayText && <span className="text-neutral-700">·</span>}
+            {ddayText && <span className={dday !== null && dday <= 3 && dday >= 0 ? "text-red-400" : "text-neutral-500"}>{ddayText}</span>}
           </div>
-        ) : projects.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center text-neutral-500">
-              <Folder className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>프로젝트가 없습니다.</p>
-              <p className="text-sm text-neutral-600 mt-1">새 프로젝트를 추가해보세요.</p>
+          <div className="flex items-center gap-2">
+            {project.task_count !== undefined && project.task_count > 0 && (
+              <div className="flex items-center gap-1"><ClipboardList className="w-3 h-3" /><span>{project.task_count}</span></div>
+            )}
+            {project.members && project.members.length > 0 && (
+              <div className="flex items-center gap-1"><Users className="w-3 h-3" /><span>{project.members.length}</span></div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-neutral-400">로딩 중...</div>
+  if (!user) return <AuthForm />
+
+  return (
+    <div className="min-h-[calc(100vh-65px)] bg-black text-white p-6 md:p-12">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800"><Folder className="w-6 h-6 text-neutral-400" /></div>
+            <div>
+              <h1 className="text-2xl font-light tracking-tight">프로젝트</h1>
+              <p className="text-sm text-neutral-500 mt-0.5">{projects.length}개의 프로젝트</p>
             </div>
           </div>
-        ) : (
-          /* Projects Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {projects.map((project, index) => {
-              const status = statusConfig[project.status]
-              const dday = getDDay(project.deadline)
-              const ddayText = formatDDay(dday)
+          <div className="flex items-center gap-3">
+            {(accessLevel ?? 0) >= 1 && (
+              <button onClick={() => setShowAddForm(true)} className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"><Plus className="w-4 h-4" />추가</button>
+            )}
+          </div>
+        </div>
 
-              return (
-                <div
-                  key={project.id}
-                  onClick={() => router.push(`/project/${project.id}`)}
-                  className="group relative p-6 rounded-xl border bg-neutral-950 border-neutral-800 hover:border-neutral-600 hover:bg-neutral-900/50 transition-all duration-300 cursor-pointer animate-in fade-in slide-in-from-bottom-4"
-                  style={{ animationDelay: `${index * 50}ms`, animationFillMode: "backwards" }}
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
+        {showAddForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+            <div
+              className="relative w-full max-w-5xl bg-neutral-950 border border-neutral-800 rounded-[32px] overflow-hidden shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
+                {/* Left: Preview Section */}
+                <div className="hidden md:flex flex-1 bg-neutral-900/30 p-12 border-r border-neutral-800 flex-col items-center justify-center gap-8 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                  <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-white/5 blur-[100px] rounded-full" />
+
+                  <div className="relative z-10 w-full flex flex-col items-center">
+                    <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.3em] mb-12 opacity-50">Card Preview</p>
+                    <div className="w-full max-w-sm transform scale-110 hover:scale-[1.12] transition-transform duration-500">
+                      <ProjectCard
+                        project={{
+                          ...newProject,
+                          id: 'preview',
+                          created_at: new Date().toISOString(),
+                          members: Array.from(new Set([user?.id, ...newProject.members])).filter(Boolean).map(uid => {
+                            const m = allUsers.find(u => u.user_uuid === uid)
+                            return {
+                              user_uuid: uid,
+                              role: uid === user?.id ? "manager" : "member",
+                              user: {
+                                user_uuid: uid,
+                                name: m?.display_name || m?.name || (uid === user?.id ? "You" : "User"),
+                                name_eng: null
+                              }
+                            }
+                          }) as any[],
+                          task_count: 0,
+                          team: allTeams.find(t => t.id === newProject.team_id)
+                        } as any}
+                        index={0}
+                      />
+                    </div>
+                    <div className="mt-16 text-center space-y-2">
+                      <p className="text-xs text-neutral-400 font-medium">실시간 프리뷰</p>
+                      <p className="text-[10px] text-neutral-600 leading-relaxed italic">작성 중인 내용이 어떻게 표시될지 확인하세요.<br />완성도 높은 정보 입력은 협업의 효율을 높입니다.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Input Section */}
+                <div className="flex-1 p-8 flex flex-col bg-black overflow-y-auto custom-scrollbar">
+                  <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-neutral-800 border border-neutral-700">
-                        <Folder className="w-4 h-4 text-neutral-400" />
+                      <div className="p-2 rounded-xl bg-white text-black shadow-lg">
+                        <Plus className="w-4 h-4 font-bold" />
                       </div>
                       <div>
-                        <h3 className="text-base font-semibold text-white group-hover:text-white">
-                          {project.name}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                            <span className="text-[11px] text-neutral-500">{status.label}</span>
-                          </div>
-                          {ddayText && (
-                            <>
-                              <span className="text-neutral-700">·</span>
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-neutral-500" />
-                                <span
-                                  className={`text-[11px] font-medium ${dday !== null && dday < 0
-                                      ? "text-neutral-400"
-                                      : dday === 0
-                                        ? "text-white"
-                                        : dday !== null && dday <= 7
-                                          ? "text-neutral-300"
-                                          : "text-neutral-500"
-                                    }`}
-                                >
-                                  {ddayText}
-                                </span>
-                              </div>
-                            </>
-                          )}
+                        <h2 className="text-lg font-bold text-white tracking-tight uppercase">New Project</h2>
+                        <p className="text-[9px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5 opacity-60">Create a collaborative workspace</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowAddForm(false)}
+                      className="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-500 hover:text-white transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-6 flex-1">
+                    {/* Basic Info */}
+                    <div className="grid grid-cols-1 gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Title</label>
+                        <input
+                          type="text"
+                          placeholder="프로젝트명을 입력하세요"
+                          value={newProject.name}
+                          onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                          className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Status</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.entries(statusConfig).map(([key, config]) => (
+                            <button
+                              key={key}
+                              onClick={() => setNewProject({ ...newProject, status: key as Project["status"] })}
+                              className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-[9px] font-bold uppercase transition-all ${newProject.status === key ? 'bg-white text-black border-white shadow-md' : 'bg-neutral-900/50 text-neutral-500 border-neutral-800 hover:border-neutral-700'}`}
+                            >
+                              <span>{config.label}</span>
+                              <div className={`w-1 h-1 rounded-full ${config.dot}`} />
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>
 
-                    {project.url && (
-                      <a
-                        href={project.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 text-neutral-600 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
+                    {/* Meta Info: Deadline, Team, Visibility */}
+                    <div className="grid grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Deadline</label>
+                        <input
+                          type="date"
+                          value={newProject.deadline}
+                          onChange={(e) => setNewProject({ ...newProject, deadline: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-white transition-all [color-scheme:dark]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Assign Team</label>
+                        <select
+                          value={newProject.team_id}
+                          onChange={(e) => setNewProject({ ...newProject, team_id: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-[10px] font-bold uppercase text-white focus:outline-none focus:border-white transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="" className="bg-black text-white">No Team Assigned</option>
+                          {allTeams.map(team => (
+                            <option key={team.id} value={team.id} className="bg-black text-white">{team.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Visibility</label>
+                        <button
+                          onClick={() => setNewProject({ ...newProject, is_public: !newProject.is_public })}
+                          className={`flex items-center justify-between px-4 py-2.5 w-full h-[42px] rounded-xl border transition-all ${newProject.is_public ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-yellow-500/10 border-yellow-500/30 text-yellow-500"}`}
+                        >
+                          <span className="text-[9px] font-bold uppercase tracking-wider">{newProject.is_public ? "Public" : "Private"}</span>
+                          {newProject.is_public ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Member Selection */}
+                    <div className="space-y-3 pt-5 border-t border-neutral-800">
+                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Select Members ({newProject.members.length})</label>
+                      <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
+                        {allUsers.map((m) => {
+                          const isSelected = newProject.members.includes(m.user_uuid)
+                          const isSelf = m.user_uuid === user?.id
+                          return (
+                            <button
+                              key={m.user_uuid}
+                              onClick={() => {
+                                if (isSelf) return
+                                const nextMembers = isSelected
+                                  ? newProject.members.filter(id => id !== m.user_uuid)
+                                  : [...newProject.members, m.user_uuid]
+                                setNewProject({ ...newProject, members: nextMembers })
+                              }}
+                              disabled={isSelf}
+                              className={`flex items-center gap-2 p-1.5 rounded-lg border transition-all text-left ${isSelf ? "opacity-30 border-neutral-800 bg-neutral-900/10" :
+                                isSelected
+                                  ? "bg-white border-white text-black shadow-md"
+                                  : "bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-white"
+                                }`}
+                            >
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold ${isSelected ? "bg-black text-white" : "bg-neutral-800 text-neutral-500"}`}>
+                                {(m.display_name || m.name || "?")[0]}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[8px] font-bold truncate">{m.display_name || (isSelf ? "You" : m.name)}</p>
+                              </div>
+                              {isSelected && <Check className="w-2.5 h-2.5 ml-auto text-black" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-4 border-t border-neutral-800">
+                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Description (Optional)</label>
+                      <textarea
+                        placeholder="상세 내용을 입력하세요"
+                        value={newProject.description}
+                        onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                        rows={2}
+                        className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 resize-none"
+                      />
+                    </div>
                   </div>
 
-                  {/* Description */}
-                  {project.description && (
-                    <p className="text-sm text-neutral-400 mb-3 line-clamp-2">
-                      {project.description}
-                    </p>
-                  )}
-
-                  {/* Tags */}
-                  {project.tags && project.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {project.tags.slice(0, 4).map((tag) => (
-                        <span
-                          key={tag}
-                          className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-neutral-500 bg-neutral-900 border border-neutral-800 rounded-md"
-                        >
-                          <Tag className="w-3 h-3" />
-                          {tag}
-                        </span>
-                      ))}
-                      {project.tags.length > 4 && (
-                        <span className="px-2 py-0.5 text-[11px] text-neutral-600">
-                          +{project.tags.length - 4}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Members Preview */}
-                  {project.members && project.members.length > 0 && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users className="w-3.5 h-3.5 text-neutral-600" />
-                      <div className="flex -space-x-2">
-                        {project.members.slice(0, 4).map((member) => (
-                          <div
-                            key={member.user_uuid}
-                            className="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-[10px] font-bold text-neutral-300"
-                            title={member.user?.name || ""}
-                          >
-                            {(member.user?.name || "?")[0]}
-                          </div>
-                        ))}
-                        {project.members.length > 4 && (
-                          <div className="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-[10px] font-medium text-neutral-400">
-                            +{project.members.length - 4}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-xs text-neutral-500">{project.members.length}명</span>
-                    </div>
-                  )}
-
-                  {/* Footer */}
-                  <div className="flex items-center gap-2 text-xs text-neutral-600 pt-2 border-t border-neutral-800/50">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{formatDate(project.created_at)}</span>
-                    {project.deadline && (
-                      <>
-                        <span className="text-neutral-700">→</span>
-                        <span>{formatDate(project.deadline)}</span>
-                      </>
-                    )}
+                  <div className="pt-8 mt-auto border-t border-neutral-800 flex gap-3">
+                    <button
+                      onClick={() => setShowAddForm(false)}
+                      className="flex-1 py-3 text-[9px] font-bold text-neutral-500 hover:text-white transition-all uppercase tracking-[0.1em]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddProject}
+                      disabled={!newProject.name.trim()}
+                      className="flex-[1.5] py-3 bg-white text-black text-[10px] font-bold rounded-xl hover:bg-neutral-200 transition-all shadow-lg disabled:opacity-20 active:scale-95 uppercase tracking-[0.1em]"
+                    >
+                      Create Project
+                    </button>
                   </div>
                 </div>
-              )
-            })}
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {loadingProjects ? <div className="py-20 text-center text-neutral-400">불러오는 중...</div> : projects.length === 0 ? (
+          <div className="py-20 text-center text-neutral-500"><Folder className="w-12 h-12 mx-auto mb-4 opacity-30" /><p>프로젝트가 없습니다.</p></div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {projects.map((project, index) => <ProjectCard key={project.id} project={project} index={index} />)}
           </div>
         )}
       </div>

@@ -5,7 +5,7 @@ import { AuthForm } from "@/components/auth-form"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
-import { Users, Shield, Phone, Briefcase, Plus, X, UserPlus, UsersRound, ChevronDown } from "lucide-react"
+import { Users, Shield, Phone, Briefcase, Plus, X, UserPlus, UsersRound, ChevronDown, Check } from "lucide-react"
 
 type TeamMember = {
   user_uuid: string
@@ -40,7 +40,7 @@ export default function TeamPage() {
   const [addingMemberTo, setAddingMemberTo] = useState<string | null>(null)
   const [selectedMember, setSelectedMember] = useState("")
   const [memberRole, setMemberRole] = useState("")
-  const [newTeam, setNewTeam] = useState({ name: "", description: "" })
+  const [newTeam, setNewTeam] = useState<{ name: string; description: string; members: string[] }>({ name: "", description: "", members: [] })
 
   useEffect(() => {
     if (user && (accessLevel ?? 0) >= 1) {
@@ -107,13 +107,29 @@ export default function TeamPage() {
 
     try {
       const supabase = getSupabase()
-      const { error } = await supabase.from("teams").insert({
-        name: newTeam.name.trim(),
-        description: newTeam.description.trim() || null,
-      })
+      const { data: teamData, error: teamError } = await supabase
+        .from("teams")
+        .insert({
+          name: newTeam.name.trim(),
+          description: newTeam.description.trim() || null,
+        })
+        .select()
+        .single()
 
-      if (error) throw error
-      setNewTeam({ name: "", description: "" })
+      if (teamError) throw teamError
+
+      // 초기 멤버 추가
+      if (newTeam.members.length > 0) {
+        const memberInserts = newTeam.members.map(userUuid => ({
+          team_id: teamData.id,
+          user_uuid: userUuid,
+          role: "Member"
+        }))
+        const { error: membersError } = await supabase.from("team_members").insert(memberInserts)
+        if (membersError) throw membersError
+      }
+
+      setNewTeam({ name: "", description: "", members: [] })
       setShowAddTeam(false)
       fetchData()
     } catch (err) {
@@ -238,40 +254,160 @@ export default function TeamPage() {
 
         {/* Add Team Form */}
         {showAddTeam && (accessLevel ?? 0) >= 1 && (
-          <div className="mb-8 p-4 border border-neutral-800 rounded-lg bg-neutral-950 animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center gap-3 mb-4">
-              <UsersRound className="w-5 h-5 text-neutral-400" />
-              <span className="font-medium">새 팀 만들기</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="팀 이름"
-                value={newTeam.name}
-                onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
-              <input
-                type="text"
-                placeholder="설명 (선택)"
-                value={newTeam.description}
-                onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
-                className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowAddTeam(false)}
-                className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAddTeam}
-                className="px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
-              >
-                만들기
-              </button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+
+            <div
+              className="relative w-full max-w-5xl bg-neutral-950 border border-neutral-800 rounded-[32px] overflow-hidden shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
+                {/* Left: Preview Section */}
+                <div className="hidden md:flex flex-1 bg-neutral-900/30 p-12 border-r border-neutral-800 flex-col items-center justify-center gap-8 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                  <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-white/5 blur-[100px] rounded-full" />
+
+                  <div className="relative z-10 w-full flex flex-col items-center">
+                    <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.3em] mb-12 opacity-50">Team Preview</p>
+                    <div className="w-full max-w-sm transform scale-110 hover:scale-[1.12] transition-transform duration-500">
+                      <div className="rounded-xl border bg-neutral-950 border-neutral-800 p-6 shadow-2xl">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-lg bg-neutral-800 border border-neutral-700">
+                              <UsersRound className="w-5 h-5 text-neutral-400" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-white text-lg">{newTeam.name || "팀 이름을 입력하세요"}</h3>
+                              <p className="text-sm text-neutral-500 mt-1">{newTeam.description || "팀의 역할이나 설명을 적어주세요"}</p>
+                              <div className="flex items-center gap-2 mt-3">
+                                <Users className="w-3.5 h-3.5 text-neutral-600" />
+                                <span className="text-[11px] text-neutral-500 font-medium">
+                                  {newTeam.members.length}명 참여 중
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex -space-x-2 mt-6">
+                          {newTeam.members.length > 0 ? (
+                            newTeam.members.slice(0, 5).map((uid) => {
+                              const member = members.find(m => m.user_uuid === uid)
+                              return (
+                                <div key={uid} className="w-8 h-8 rounded-full bg-neutral-800 border-2 border-neutral-950 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                                  {(member?.display_name || member?.name || "?")[0]}
+                                </div>
+                              )
+                            })
+                          ) : (
+                            [1, 2, 3].map(i => (
+                              <div key={i} className="w-8 h-8 rounded-full bg-neutral-800 border-2 border-neutral-950 flex items-center justify-center text-[10px] font-bold text-neutral-700">?</div>
+                            ))
+                          )}
+                          {newTeam.members.length > 5 && (
+                            <div className="w-8 h-8 rounded-full bg-neutral-900 border-2 border-neutral-950 flex items-center justify-center text-[10px] font-bold text-neutral-400">
+                              +{newTeam.members.length - 5}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Input Section */}
+                <div className="flex-1 p-8 flex flex-col bg-black overflow-y-auto custom-scrollbar">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-white text-black shadow-lg">
+                        <UsersRound className="w-4 h-4 font-bold" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-white tracking-tight uppercase">New Team</h2>
+                        <p className="text-[9px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5 opacity-60">Group your workflow efficiently</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowAddTeam(false)}
+                      className="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-500 hover:text-white transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-6 flex-1">
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Team Name</label>
+                        <input
+                          type="text"
+                          placeholder="전략 기획팀, 디자인 스쿼드 등"
+                          value={newTeam.name}
+                          onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
+                          className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Team Description</label>
+                        <textarea
+                          placeholder="팀의 주요 역할에 대해 간단히 기록해 주세요"
+                          value={newTeam.description}
+                          onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
+                          rows={2}
+                          className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 resize-none"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Add Members ({newTeam.members.length})</label>
+                        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
+                          {members.map((m) => {
+                            const isSelected = newTeam.members.includes(m.user_uuid)
+                            return (
+                              <button
+                                key={m.user_uuid}
+                                onClick={() => {
+                                  const nextMembers = isSelected
+                                    ? newTeam.members.filter(id => id !== m.user_uuid)
+                                    : [...newTeam.members, m.user_uuid]
+                                  setNewTeam({ ...newTeam, members: nextMembers })
+                                }}
+                                className={`flex items-center gap-2.5 p-2 rounded-lg border transition-all text-left ${isSelected
+                                    ? "bg-white border-white text-black shadow-md"
+                                    : "bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-white"
+                                  }`}
+                              >
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold ${isSelected ? "bg-black text-white" : "bg-neutral-800 text-neutral-500"}`}>
+                                  {(m.display_name || m.name || "?")[0]}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] font-bold truncate">{m.display_name || m.name || "Guest"}</p>
+                                  <p className={`text-[8px] opacity-60 truncate ${isSelected ? "text-black/60" : "text-neutral-500"}`}>Lv.{m.access_level}</p>
+                                </div>
+                                {isSelected && <Check className="w-2.5 h-2.5 ml-auto" />}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-8 mt-auto border-t border-neutral-800 flex gap-3">
+                    <button
+                      onClick={() => setShowAddTeam(false)}
+                      className="flex-1 py-3 text-[9px] font-bold text-neutral-500 hover:text-white transition-all uppercase tracking-[0.1em]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddTeam}
+                      disabled={!newTeam.name.trim()}
+                      className="flex-[1.5] py-3 bg-white text-black text-[10px] font-bold rounded-xl hover:bg-neutral-200 transition-all shadow-lg disabled:opacity-20 active:scale-95 uppercase tracking-[0.1em]"
+                    >
+                      Create Team
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

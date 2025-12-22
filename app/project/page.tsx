@@ -123,7 +123,7 @@ export default function ProjectPage() {
       if (error) throw error
 
       const projectsWithDetails = await Promise.all(
-        (data || []).map(async (project) => {
+        (data || []).map(async (project: any) => {
           // 멤버 조회
           const { data: membersData } = await supabase
             .from("project_members")

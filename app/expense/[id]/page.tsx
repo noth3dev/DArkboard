@@ -132,7 +132,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/expense")}
             className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

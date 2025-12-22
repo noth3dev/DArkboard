@@ -18,6 +18,9 @@ import {
   TrendingDown,
   Filter,
   Eye,
+  CreditCard,
+  Users,
+  Folder,
 } from "lucide-react"
 
 type FilterType = "all" | "income" | "expense"
@@ -220,7 +223,6 @@ export function ExpenseTable() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-light tracking-tight">지출 내역</h1>
-            <p className="text-sm text-neutral-500 mt-1">{user?.email}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -236,12 +238,6 @@ export function ExpenseTable() {
             >
               <Plus className="w-4 h-4" />
               추가
-            </button>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 px-4 py-2 text-neutral-400 hover:text-white text-sm transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>

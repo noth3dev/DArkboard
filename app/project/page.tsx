@@ -123,7 +123,7 @@ export default function ProjectPage() {
       if (error) throw error
 
       const projectsWithDetails = await Promise.all(
-        (data || []).map(async (project: any) => {
+        ((data as any[]) || []).map(async (project: any) => {
           // 멤버 조회
           const { data: membersData } = await supabase
             .from("project_members")
@@ -142,7 +142,7 @@ export default function ProjectPage() {
 
           return {
             ...project,
-            members: (membersData || []).map((m: any) => ({
+            members: ((membersData as any[]) || []).map((m: any) => ({
               user_uuid: m.user_uuid,
               role: m.role,
               user: Array.isArray(m.user) ? m.user[0] : m.user,
@@ -443,7 +443,7 @@ export default function ProjectPage() {
                           className="w-full px-4 py-2.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-[10px] font-bold uppercase text-white focus:outline-none focus:border-white transition-all appearance-none cursor-pointer"
                         >
                           <option value="" className="bg-black text-white">No Team Assigned</option>
-                          {allTeams.map(team => (
+                          {allTeams.map((team: any) => (
                             <option key={team.id} value={team.id} className="bg-black text-white">{team.name}</option>
                           ))}
                         </select>
@@ -464,7 +464,7 @@ export default function ProjectPage() {
                     <div className="space-y-3 pt-5 border-t border-neutral-800">
                       <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Select Members ({newProject.members.length})</label>
                       <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
-                        {allUsers.map((m) => {
+                        {allUsers.map((m: any) => {
                           const isSelected = newProject.members.includes(m.user_uuid)
                           const isSelf = m.user_uuid === user?.id
                           return (

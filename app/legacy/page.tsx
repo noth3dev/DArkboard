@@ -3,7 +3,16 @@
 import { useAuth } from "@/lib/auth-context"
 import { AuthForm } from "@/components/auth-form"
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
+import useEmblaCarousel from 'embla-carousel-react'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import {
     Trophy,
     Plus,
@@ -22,7 +31,9 @@ import {
     Camera,
     Loader2,
     ExternalLink,
-    Maximize2
+    Maximize2,
+    Flag,
+    Folder as FolderIcon
 } from "lucide-react"
 
 type LegacyRecord = {
@@ -30,6 +41,11 @@ type LegacyRecord = {
     competition_name: string
     organization: string | null
     award_name: string
+    project_id: string | null
+    project?: {
+        id: string
+        name: string
+    }
     award_date: string
     prize_money: string | null
     team_members: string | null
@@ -39,8 +55,10 @@ type LegacyRecord = {
 }
 
 export default function LegacyPage() {
+    const router = useRouter()
     const { user, loading, accessLevel } = useAuth()
     const [records, setRecords] = useState<LegacyRecord[]>([])
+    const [projects, setProjects] = useState<{ id: string, name: string }[]>([])
     const [loadingRecords, setLoadingRecords] = useState(true)
     const [showFormModal, setShowFormModal] = useState(false)
     const [showDetailModal, setShowDetailModal] = useState(false)
@@ -51,10 +69,27 @@ export default function LegacyPage() {
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, duration: 30 })
+
+    useEffect(() => {
+        if (emblaApi) {
+            emblaApi.on('select', () => {
+                setActiveImageIndex(emblaApi.selectedScrollSnap())
+            })
+        }
+    }, [emblaApi])
+
+    useEffect(() => {
+        if (emblaApi && showDetailModal) {
+            emblaApi.scrollTo(activeImageIndex, true)
+        }
+    }, [emblaApi, showDetailModal, activeImageIndex])
+
     const [formData, setFormData] = useState({
         competition_name: "",
         organization: "",
         award_name: "",
+        project_id: "",
         award_date: new Date().toISOString().split('T')[0],
         prize_money: "",
         team_members: "",
@@ -69,21 +104,37 @@ export default function LegacyPage() {
             const supabase = getSupabase()
             const { data, error } = await supabase
                 .from("legacy_records")
-                .select("*")
+                .select("*, project:projects(id, name)")
                 .order("award_date", { ascending: false })
 
             if (error) throw error
             setRecords(data || [])
-        } catch (err) {
-            console.error("Error fetching legacy records:", err)
+        } catch (err: any) {
+            console.error("Error fetching legacy records:", err.message || err)
         } finally {
             setLoadingRecords(false)
         }
     }, [user])
 
+    const fetchProjects = useCallback(async () => {
+        if (!user) return
+        try {
+            const supabase = getSupabase()
+            const { data, error } = await supabase
+                .from("projects")
+                .select("id, name")
+                .order("name", { ascending: true })
+            if (error) throw error
+            setProjects(data || [])
+        } catch (err) {
+            console.error("Error fetching projects:", err)
+        }
+    }, [user])
+
     useEffect(() => {
         fetchRecords()
-    }, [fetchRecords])
+        fetchProjects()
+    }, [fetchRecords, fetchProjects])
 
     const filteredRecords = useMemo(() => {
         return records.filter(r =>
@@ -129,6 +180,32 @@ export default function LegacyPage() {
             )
         }
         return <span className={mainClass}>{name}</span>
+    }
+
+    const renderTeamMembers = (members: string | null, containerClass: string) => {
+        if (!members) return null
+        const parts = members.split(/[,/|]/).map(p => p.trim()).filter(Boolean)
+        if (parts.length === 0) return null
+
+        return (
+            <div className={`flex flex-wrap gap-x-2 gap-y-1 ${containerClass}`}>
+                {parts.map((p, i) => (
+                    <span key={i} className="flex items-center gap-1">
+                        {i === 0 ? (
+                            <span className="flex items-center gap-1.5 text-white font-bold">
+                                <Flag className="w-3 h-3 text-yellow-500 fill-yellow-500/20" />
+                                {p}
+                            </span>
+                        ) : (
+                            <span className="text-neutral-500">
+                                {p}
+                            </span>
+                        )}
+                        {i < parts.length - 1 && <span className="text-neutral-800 text-[10px] ml-0.5">/</span>}
+                    </span>
+                ))}
+            </div>
+        )
     }
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,6 +258,7 @@ export default function LegacyPage() {
                 competition_name: formData.competition_name.trim(),
                 organization: formData.organization.trim() || null,
                 award_name: formData.award_name.trim(),
+                project_id: formData.project_id || null,
                 award_date: formData.award_date,
                 prize_money: formData.prize_money.trim() || null,
                 team_members: formData.team_members.trim() || null,
@@ -234,6 +312,7 @@ export default function LegacyPage() {
             competition_name: "",
             organization: "",
             award_name: "",
+            project_id: "",
             award_date: new Date().toISOString().split('T')[0],
             prize_money: "",
             team_members: "",
@@ -249,6 +328,7 @@ export default function LegacyPage() {
             competition_name: record.competition_name,
             organization: record.organization || "",
             award_name: record.award_name,
+            project_id: record.project_id || "",
             award_date: record.award_date,
             prize_money: record.prize_money || "",
             team_members: record.team_members || "",
@@ -263,19 +343,29 @@ export default function LegacyPage() {
         setSelectedRecord(record)
         setActiveImageIndex(0)
         setShowDetailModal(true)
+        // Reset embla to first image when opening
+        if (emblaApi) emblaApi.scrollTo(0, true)
     }
+
+    const scrollPrev = useCallback(() => {
+        if (emblaApi) emblaApi.scrollPrev()
+    }, [emblaApi])
+
+    const scrollNext = useCallback(() => {
+        if (emblaApi) emblaApi.scrollNext()
+    }, [emblaApi])
 
     if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-neutral-400 text-xs tracking-widest uppercase">로딩 중...</div>
     if (!user) return <AuthForm />
 
-    if ((accessLevel ?? 0) < 1) {
+    if ((accessLevel ?? 0) < 0) {
         return (
             <div className="min-h-[calc(100vh-65px)] bg-black flex flex-col items-center justify-center p-6 text-center">
                 <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
                     <X className="w-8 h-8 text-red-500" />
                 </div>
                 <h1 className="text-xl font-light mb-2 text-white">접근 권한이 없습니다</h1>
-                <p className="text-neutral-500 text-sm max-w-xs">수상 기록 페이지는 LV.II 이상의 멤버만 접근 가능합니다.</p>
+                <p className="text-neutral-500 text-sm max-w-xs">수상 기록 페이지는 인증된 프로젝트 멤버만 접근 가능합니다.</p>
             </div>
         )
     }
@@ -318,7 +408,7 @@ export default function LegacyPage() {
                                 className="w-full pl-14 pr-8 py-4 bg-transparent text-sm text-white focus:outline-none transition-all placeholder:text-neutral-700"
                             />
                         </div>
-                        {(accessLevel ?? 0) >= 2 && (
+                        {(accessLevel ?? 0) >= 1 && (
                             <button
                                 onClick={openAddModal}
                                 className="w-full sm:w-auto px-10 py-4 bg-white text-black text-[13px] font-black rounded-2xl hover:bg-neutral-200 transition-all flex items-center justify-center gap-2.5 active:scale-95 whitespace-nowrap shadow-2xl"
@@ -381,6 +471,18 @@ export default function LegacyPage() {
                                                     <h3 className="group-hover:text-yellow-500 transition-colors">
                                                         {renderAwardName(record.award_name, "text-2xl font-bold text-white", "text-sm font-medium text-neutral-400 mt-0.5")}
                                                     </h3>
+                                                    {record.project?.name && (
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                router.push(`/project/${record.project?.id}`)
+                                                            }}
+                                                            className="flex items-center gap-1.5 mt-2 opacity-60 hover:opacity-100 transition-opacity cursor-pointer w-fit"
+                                                        >
+                                                            <FolderIcon className="w-3 h-3 text-neutral-500" />
+                                                            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider underline underline-offset-4 decoration-neutral-800">{record.project.name}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <span className="text-[9px] font-black text-neutral-500 bg-neutral-900 px-3 py-1.5 rounded-full border border-neutral-800 tracking-widest uppercase">
                                                     {record.award_date.replace(/-/g, '.')}
@@ -404,8 +506,10 @@ export default function LegacyPage() {
 
                                             {record.team_members && (
                                                 <div className="flex items-start gap-3">
-                                                    <Users className="w-4 h-4 text-neutral-700 mt-0.5" />
-                                                    <p className="text-[12px] text-neutral-500 leading-relaxed max-w-[280px]">{record.team_members}</p>
+                                                    <Users className="w-4 h-4 text-neutral-700 mt-0.5 shrink-0" />
+                                                    <div className="max-w-[280px]">
+                                                        {renderTeamMembers(record.team_members, "text-[12px] leading-relaxed")}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -432,13 +536,47 @@ export default function LegacyPage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Gallery Section */}
-                        <div className="flex-1 bg-black relative overflow-hidden flex items-center justify-center group h-64 md:h-auto">
+                        <div className="flex-1 bg-black relative overflow-hidden flex items-center justify-center group h-80 md:h-auto">
                             {selectedRecord.image_urls && selectedRecord.image_urls.length > 0 ? (
-                                <img
-                                    src={selectedRecord.image_urls[activeImageIndex]}
-                                    alt={selectedRecord.award_name}
-                                    className="w-full h-full object-contain transition-all duration-500 animate-in fade-in"
-                                />
+                                <>
+                                    <div className="w-full h-full overflow-hidden" ref={emblaRef}>
+                                        <div className="flex w-full h-full">
+                                            {selectedRecord.image_urls.map((url, i) => (
+                                                <div key={i} className="flex-[0_0_100%] min-w-0 h-full relative">
+                                                    <img
+                                                        src={url}
+                                                        alt={`${selectedRecord.award_name} - ${i + 1}`}
+                                                        className="w-full h-full object-contain"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {selectedRecord.image_urls.length > 1 && (
+                                        <>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); scrollPrev(); }}
+                                                className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-black/50 backdrop-blur-md rounded-full border border-white/5 text-white hover:bg-white hover:text-black transition-all opacity-0 group-hover:opacity-100 hidden md:block"
+                                            >
+                                                <ChevronLeft className="w-6 h-6" />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); scrollNext(); }}
+                                                className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-black/50 backdrop-blur-md rounded-full border border-white/5 text-white hover:bg-white hover:text-black transition-all opacity-0 group-hover:opacity-100 hidden md:block"
+                                            >
+                                                <ChevronRight className="w-6 h-6" />
+                                            </button>
+
+                                            {/* Mobile Navigation Dots */}
+                                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 md:hidden">
+                                                {selectedRecord.image_urls.map((_, i) => (
+                                                    <div key={i} className={`h-1 rounded-full transition-all ${i === activeImageIndex ? "w-6 bg-white" : "w-1.5 bg-white/30"}`} />
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </>
                             ) : (
                                 <Trophy className="w-24 h-24 text-neutral-900" />
                             )}
@@ -459,6 +597,15 @@ export default function LegacyPage() {
                                         <h2 className="tracking-tight">
                                             {renderAwardName(selectedRecord.award_name, "text-3xl md:text-4xl font-bold text-white", "text-lg md:text-xl font-medium text-neutral-400 mt-2")}
                                         </h2>
+                                        {selectedRecord.project?.name && (
+                                            <div
+                                                onClick={() => router.push(`/project/${selectedRecord.project?.id}`)}
+                                                className="flex items-center gap-2 mt-4 px-4 py-2 bg-neutral-900/50 rounded-xl border border-neutral-800 w-fit cursor-pointer hover:bg-neutral-800 transition-all"
+                                            >
+                                                <FolderIcon className="w-4 h-4 text-neutral-500" />
+                                                <span className="text-sm font-bold text-neutral-300 uppercase tracking-widest">{selectedRecord.project.name}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <button
@@ -493,7 +640,9 @@ export default function LegacyPage() {
                                     {selectedRecord.team_members && (
                                         <div className="space-y-2">
                                             <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-black">Members</p>
-                                            <p className="text-sm font-medium text-neutral-400 leading-relaxed">{selectedRecord.team_members}</p>
+                                            <div className="pt-1">
+                                                {renderTeamMembers(selectedRecord.team_members, "text-sm md:text-base")}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -525,8 +674,8 @@ export default function LegacyPage() {
                             </div>
 
                             {/* Actions */}
-                            {(accessLevel ?? 0) >= 2 && (
-                                <div className="mt-12 pt-8 border-t border-neutral-900 flex gap-4">
+                            {(accessLevel ?? 0) >= 1 && (
+                                <div className="flex gap-4 p-8 border-t border-neutral-900 bg-neutral-950/50">
                                     <button
                                         onClick={() => openEditModal(selectedRecord)}
                                         className="flex-1 py-4.5 bg-neutral-900 text-white text-[12px] font-black rounded-2xl hover:bg-neutral-800 transition-all border border-neutral-800 flex items-center justify-center gap-2"
@@ -534,12 +683,14 @@ export default function LegacyPage() {
                                         <Edit2 className="w-4 h-4" />
                                         정보 수정
                                     </button>
-                                    <button
-                                        onClick={() => handleDelete(selectedRecord.id)}
-                                        className="px-6 py-4.5 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
+                                    {(accessLevel ?? 0) >= 2 && (
+                                        <button
+                                            onClick={() => handleDelete(selectedRecord.id)}
+                                            className="px-6 py-4.5 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -570,6 +721,9 @@ export default function LegacyPage() {
                                             <div className="mt-1">
                                                 {renderAwardName(formData.award_name || "Award Name", "text-xl font-bold text-white", "text-[12px] font-medium text-neutral-400 mt-0.5")}
                                             </div>
+                                            {formData.project_id && (
+                                                <p className="text-[9px] text-neutral-600 font-bold uppercase mt-2">Proj: {projects.find(p => p.id === formData.project_id)?.name || "Selected Project"}</p>
+                                            )}
                                         </div>
                                         {formData.prize_money && <p className="text-[10px] font-bold text-emerald-500">{formData.prize_money}</p>}
                                     </div>
@@ -605,23 +759,33 @@ export default function LegacyPage() {
                                         />
                                     </div>
                                     <div className="space-y-2.5">
-                                        <label className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black ml-1">주관기관</label>
-                                        <input
-                                            type="text"
-                                            value={formData.organization}
-                                            onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
-                                            className="w-full px-6 py-4.5 bg-neutral-900/40 border border-neutral-800 rounded-2xl text-sm text-white focus:outline-none focus:border-white transition-all font-semibold"
-                                        />
+                                        <label className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black ml-1">연관 프로젝트</label>
+                                        <Select
+                                            value={formData.project_id || "none"}
+                                            onValueChange={(val) => setFormData({ ...formData, project_id: val === "none" ? "" : val })}
+                                        >
+                                            <SelectTrigger className="w-full h-[54px] bg-neutral-900/40 border-neutral-800 rounded-2xl text-sm text-white focus:outline-none focus:ring-0 focus:ring-offset-0">
+                                                <SelectValue placeholder="연관 프로젝트 없음" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-neutral-950 border-neutral-800 text-white">
+                                                <SelectItem value="none">연관 프로젝트 없음</SelectItem>
+                                                {projects.map((project) => (
+                                                    <SelectItem key={project.id} value={project.id}>
+                                                        {project.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                     <div className="space-y-2.5">
-                                        <label className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black ml-1">상 명 (내역)</label>
+                                        <label className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black ml-1">주관기관</label>
                                         <input
                                             type="text"
-                                            value={formData.award_name}
-                                            onChange={(e) => setFormData({ ...formData, award_name: e.target.value })}
+                                            value={formData.organization}
+                                            onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
                                             className="w-full px-6 py-4.5 bg-neutral-900/40 border border-neutral-800 rounded-2xl text-sm text-white focus:outline-none focus:border-white transition-all font-semibold"
                                         />
                                     </div>
@@ -634,6 +798,17 @@ export default function LegacyPage() {
                                             className="w-full px-6 py-4.5 bg-neutral-900/40 border border-neutral-800 rounded-2xl text-sm text-white focus:outline-none focus:border-white transition-all [color-scheme:dark] font-mono"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="space-y-2.5">
+                                    <label className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black ml-1">상 명 (내역)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="예: 최우수상(경기도 교육감상)"
+                                        value={formData.award_name}
+                                        onChange={(e) => setFormData({ ...formData, award_name: e.target.value })}
+                                        className="w-full px-6 py-4.5 bg-neutral-900/40 border border-neutral-800 rounded-2xl text-sm text-white focus:outline-none focus:border-white transition-all font-semibold"
+                                    />
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 border-t border-neutral-900 pt-10">

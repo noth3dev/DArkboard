@@ -130,19 +130,14 @@ export function Header() {
                 <Calendar className="w-4 h-4" />
               </Link>
             )}
-            {(accessLevel ?? 0) >= 1 && (
-              <div className="w-[1px] h-3 bg-neutral-800 mx-1" />
-            )}
-
-            {(accessLevel ?? 0) >= 1 && (
-              <Link
-                href="/legacy"
-                className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                title="명예의 전당"
-              >
-                <Trophy className="w-4 h-4" />
-              </Link>
-            )}
+            <div className="w-[1px] h-3 bg-neutral-800 mx-1" />
+            <Link
+              href="/legacy"
+              className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+              title="명예의 전당"
+            >
+              <Trophy className="w-4 h-4" />
+            </Link>
             {(accessLevel ?? 0) >= 2 && (
               <div className="w-[1px] h-3 bg-neutral-800 mx-1" />
             )}
@@ -257,22 +252,18 @@ export function Header() {
                 <span className="text-sm font-medium">일정 관리</span>
               </Link>
             )}
-            {(accessLevel ?? 0) >= 1 && (
-              <div className="px-6 pt-4 pb-2">
-                <div className="h-px bg-neutral-900 w-full" />
-                <p className="text-[9px] text-neutral-600 font-black uppercase tracking-[0.2em] mt-3">Legacy & Records</p>
-              </div>
-            )}
-            {(accessLevel ?? 0) >= 1 && (
-              <Link
-                href="/legacy"
-                className="flex items-center gap-3 px-6 py-4 text-neutral-400 hover:text-white active:bg-neutral-900 transition-colors border-b border-neutral-900/50"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <Trophy className="w-4 h-4" />
-                <span className="text-sm font-medium">명예의 전당</span>
-              </Link>
-            )}
+            <div className="px-6 pt-4 pb-2">
+              <div className="h-px bg-neutral-900 w-full" />
+              <p className="text-[9px] text-neutral-600 font-black uppercase tracking-[0.2em] mt-3">Legacy & Records</p>
+            </div>
+            <Link
+              href="/legacy"
+              className="flex items-center gap-3 px-6 py-4 text-neutral-400 hover:text-white active:bg-neutral-900 transition-colors border-b border-neutral-900/50"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <Trophy className="w-4 h-4" />
+              <span className="text-sm font-medium">명예의 전당</span>
+            </Link>
 
             {(accessLevel ?? 0) >= 2 && (
               <div className="px-6 pt-4 pb-2">

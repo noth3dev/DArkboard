@@ -24,6 +24,13 @@ import {
   Check,
   UsersRound,
 } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type TeamMember = {
   user_uuid: string
@@ -246,8 +253,8 @@ export default function ProjectPage() {
     return projects.filter((p) => p.deadline === dateStr)
   }
 
-  function nextMonth() { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1)) }
-  function prevMonth() { setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1)) }
+  function nextMonth() { setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)) }
+  function prevMonth() { setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)) }
 
   function ProjectCard({ project, index, compact = false }: { project: Project; index: number; compact?: boolean }) {
     const status = statusConfig[project.status]
@@ -311,7 +318,7 @@ export default function ProjectPage() {
   if (!user) return <AuthForm />
 
   return (
-    <div className="min-h-[calc(100vh-65px)] bg-black text-white p-6 md:p-12">
+    <div className="min-h-[calc(100vh-65px)] bg-black text-white p-4 sm:p-6 md:p-12">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
@@ -329,9 +336,9 @@ export default function ProjectPage() {
         </div>
 
         {showAddForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4 md:p-10 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300">
             <div
-              className="relative w-full max-w-5xl bg-neutral-950 border border-neutral-800 rounded-[32px] overflow-hidden shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-300"
+              className="relative w-full h-full sm:h-auto sm:max-w-5xl bg-neutral-950 border-0 sm:border sm:border-neutral-800 rounded-0 sm:rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
@@ -341,7 +348,7 @@ export default function ProjectPage() {
                   <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-white/5 blur-[100px] rounded-full" />
 
                   <div className="relative z-10 w-full flex flex-col items-center">
-                    <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.3em] mb-12 opacity-50">Card Preview</p>
+                    <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.3em] mb-12 opacity-50">CARD PREVIEW</p>
                     <div className="w-full max-w-sm transform scale-110 hover:scale-[1.12] transition-transform duration-500">
                       <ProjectCard
                         project={{
@@ -355,7 +362,7 @@ export default function ProjectPage() {
                               role: uid === user?.id ? "manager" : "member",
                               user: {
                                 user_uuid: uid,
-                                name: m?.display_name || m?.name || (uid === user?.id ? "You" : "User"),
+                                name: m?.display_name || m?.name || (uid === user?.id ? "나" : "사용자"),
                                 name_eng: null
                               }
                             }
@@ -367,7 +374,7 @@ export default function ProjectPage() {
                       />
                     </div>
                     <div className="mt-16 text-center space-y-2">
-                      <p className="text-xs text-neutral-400 font-medium">실시간 프리뷰</p>
+                      <p className="text-xs text-neutral-400 font-medium font-bold uppercase tracking-widest">실시간 프리뷰</p>
                       <p className="text-[10px] text-neutral-600 leading-relaxed italic">작성 중인 내용이 어떻게 표시될지 확인하세요.<br />완성도 높은 정보 입력은 협업의 효율을 높입니다.</p>
                     </div>
                   </div>
@@ -381,13 +388,13 @@ export default function ProjectPage() {
                         <Plus className="w-4 h-4 font-bold" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-bold text-white tracking-tight uppercase">New Project</h2>
-                        <p className="text-[9px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5 opacity-60">Create a collaborative workspace</p>
+                        <h2 className="text-lg font-bold text-white tracking-tight uppercase">새 프로젝트</h2>
+                        <p className="text-[9px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5 opacity-60">협업을 위한 새로운 워크스페이스 생성</p>
                       </div>
                     </div>
                     <button
                       onClick={() => setShowAddForm(false)}
-                      className="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-500 hover:text-white transition-all"
+                      className="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-500 hover:text-white transition-all border border-neutral-800"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -397,7 +404,7 @@ export default function ProjectPage() {
                     {/* Basic Info */}
                     <div className="grid grid-cols-1 gap-5">
                       <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Title</label>
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">제목</label>
                         <input
                           type="text"
                           placeholder="프로젝트명을 입력하세요"
@@ -407,14 +414,14 @@ export default function ProjectPage() {
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Status</label>
+                      <div className="space-y-2 text-white">
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">상태</label>
                         <div className="grid grid-cols-2 gap-2">
                           {Object.entries(statusConfig).map(([key, config]) => (
                             <button
                               key={key}
                               onClick={() => setNewProject({ ...newProject, status: key as Project["status"] })}
-                              className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-[9px] font-bold uppercase transition-all ${newProject.status === key ? 'bg-white text-black border-white shadow-md' : 'bg-neutral-900/50 text-neutral-500 border-neutral-800 hover:border-neutral-700'}`}
+                              className={`flex items-center justify-between px-3 py-2 rounded-lg border text-[9px] font-bold uppercase transition-all ${newProject.status === key ? 'bg-white text-black border-white shadow-md' : 'bg-neutral-900/50 text-neutral-500 border-neutral-800 hover:border-neutral-700'}`}
                             >
                               <span>{config.label}</span>
                               <div className={`w-1 h-1 rounded-full ${config.dot}`} />
@@ -425,9 +432,9 @@ export default function ProjectPage() {
                     </div>
 
                     {/* Meta Info: Deadline, Team, Visibility */}
-                    <div className="grid grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                       <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Deadline</label>
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">마감일</label>
                         <input
                           type="date"
                           value={newProject.deadline}
@@ -436,25 +443,29 @@ export default function ProjectPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Assign Team</label>
-                        <select
-                          value={newProject.team_id}
-                          onChange={(e) => setNewProject({ ...newProject, team_id: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-[10px] font-bold uppercase text-white focus:outline-none focus:border-white transition-all appearance-none cursor-pointer"
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">팀 배정</label>
+                        <Select
+                          value={newProject.team_id || "none"}
+                          onValueChange={(val) => setNewProject({ ...newProject, team_id: val === "none" ? "" : val })}
                         >
-                          <option value="" className="bg-black text-white">No Team Assigned</option>
-                          {allTeams.map((team: any) => (
-                            <option key={team.id} value={team.id} className="bg-black text-white">{team.name}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="w-full h-[42px] bg-neutral-900/50 border-neutral-800 text-[10px] uppercase font-bold">
+                            <SelectValue placeholder="배정된 팀 없음" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">배정된 팀 없음</SelectItem>
+                            {allTeams.map((team: any) => (
+                              <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Visibility</label>
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">공개 여부</label>
                         <button
                           onClick={() => setNewProject({ ...newProject, is_public: !newProject.is_public })}
                           className={`flex items-center justify-between px-4 py-2.5 w-full h-[42px] rounded-xl border transition-all ${newProject.is_public ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-yellow-500/10 border-yellow-500/30 text-yellow-500"}`}
                         >
-                          <span className="text-[9px] font-bold uppercase tracking-wider">{newProject.is_public ? "Public" : "Private"}</span>
+                          <span className="text-[9px] font-bold uppercase tracking-wider">{newProject.is_public ? "전체 공개" : "비공개 (멤버 전용)"}</span>
                           {newProject.is_public ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                         </button>
                       </div>
@@ -462,8 +473,8 @@ export default function ProjectPage() {
 
                     {/* Member Selection */}
                     <div className="space-y-3 pt-5 border-t border-neutral-800">
-                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Select Members ({newProject.members.length})</label>
-                      <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
+                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">멤버 선택 ({newProject.members.length})</label>
+                      <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
                         {allUsers.map((m: any) => {
                           const isSelected = newProject.members.includes(m.user_uuid)
                           const isSelf = m.user_uuid === user?.id
@@ -488,7 +499,7 @@ export default function ProjectPage() {
                                 {(m.display_name || m.name || "?")[0]}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-[8px] font-bold truncate">{m.display_name || (isSelf ? "You" : m.name)}</p>
+                                <p className="text-[8px] font-bold truncate">{m.display_name || (isSelf ? "나" : m.name)}</p>
                               </div>
                               {isSelected && <Check className="w-2.5 h-2.5 ml-auto text-black" />}
                             </button>
@@ -498,7 +509,7 @@ export default function ProjectPage() {
                     </div>
 
                     <div className="space-y-2 pt-4 border-t border-neutral-800">
-                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Description (Optional)</label>
+                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">상세 설명 (선택 사항)</label>
                       <textarea
                         placeholder="상세 내용을 입력하세요"
                         value={newProject.description}
@@ -514,14 +525,14 @@ export default function ProjectPage() {
                       onClick={() => setShowAddForm(false)}
                       className="flex-1 py-3 text-[9px] font-bold text-neutral-500 hover:text-white transition-all uppercase tracking-[0.1em]"
                     >
-                      Cancel
+                      취소
                     </button>
                     <button
                       onClick={handleAddProject}
                       disabled={!newProject.name.trim()}
                       className="flex-[1.5] py-3 bg-white text-black text-[10px] font-bold rounded-xl hover:bg-neutral-200 transition-all shadow-lg disabled:opacity-20 active:scale-95 uppercase tracking-[0.1em]"
                     >
-                      Create Project
+                      프로젝트 생성
                     </button>
                   </div>
                 </div>
@@ -531,7 +542,7 @@ export default function ProjectPage() {
         )}
 
 
-        {loadingProjects ? <div className="py-20 text-center text-neutral-400">불러오는 중...</div> : projects.length === 0 ? (
+        {loadingProjects ? <div className="py-20 text-center text-neutral-400 font-bold uppercase tracking-widest text-[10px]">로딩 중...</div> : projects.length === 0 ? (
           <div className="py-20 text-center text-neutral-500"><Folder className="w-12 h-12 mx-auto mb-4 opacity-30" /><p>프로젝트가 없습니다.</p></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

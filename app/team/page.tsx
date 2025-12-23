@@ -6,6 +6,13 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
 import { Users, Shield, Phone, Briefcase, Plus, X, UserPlus, UsersRound, ChevronDown, Check } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type TeamMember = {
   user_uuid: string
@@ -371,8 +378,8 @@ export default function TeamPage() {
                                   setNewTeam({ ...newTeam, members: nextMembers })
                                 }}
                                 className={`flex items-center gap-2.5 p-2 rounded-lg border transition-all text-left ${isSelected
-                                    ? "bg-white border-white text-black shadow-md"
-                                    : "bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-white"
+                                  ? "bg-white border-white text-black shadow-md"
+                                  : "bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-white"
                                   }`}
                               >
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold ${isSelected ? "bg-black text-white" : "bg-neutral-800 text-neutral-500"}`}>
@@ -521,19 +528,19 @@ export default function TeamPage() {
                             {/* Add Member Form */}
                             {addingMemberTo === team.id && (
                               <div className="flex gap-2 mb-3 animate-in fade-in duration-200">
-                                <select
-                                  value={selectedMember}
-                                  onChange={(e) => setSelectedMember(e.target.value)}
-                                  className="flex-1 px-2 py-1.5 bg-black border border-neutral-700 rounded text-sm text-white focus:outline-none focus:border-neutral-500"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <option value="">멤버 선택...</option>
-                                  {availableMembers.map((m) => (
-                                    <option key={m.user_uuid} value={m.user_uuid}>
-                                      {m.name || m.name_eng || m.user_uuid.slice(0, 8)}
-                                    </option>
-                                  ))}
-                                </select>
+                                <Select value={selectedMember} onValueChange={setSelectedMember}>
+                                  <SelectTrigger className="flex-1 h-auto py-1.5 bg-black border-neutral-700 rounded text-sm">
+                                    <SelectValue placeholder="멤버 선택..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none" disabled>멤버 선택...</SelectItem>
+                                    {availableMembers.map((m) => (
+                                      <SelectItem key={m.user_uuid} value={m.user_uuid}>
+                                        {m.name || m.name_eng || m.user_uuid.slice(0, 8)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <input
                                   type="text"
                                   placeholder="역할"

@@ -22,6 +22,13 @@ import {
   Users,
   Folder,
 } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type FilterType = "all" | "income" | "expense"
 
@@ -169,7 +176,7 @@ export function ExpenseTable() {
       searchQuery === "" ||
       expense.item.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesUser = userFilter === "" || expense.user_id?.toLowerCase().includes(userFilter.toLowerCase())
+    const matchesUser = !userFilter || userFilter === "all" || expense.user_id?.toLowerCase().includes(userFilter.toLowerCase())
     return matchesType && matchesSearch && matchesUser
   })
 
@@ -223,18 +230,24 @@ export function ExpenseTable() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black">
-        <div className="text-neutral-400">로딩 중...</div>
+        <div className="text-neutral-400 font-bold uppercase tracking-widest text-[10px]">로딩 중...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 md:p-12">
+    <div className="min-h-screen bg-black text-white p-4 sm:p-6 md:p-12">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-light tracking-tight">지출 내역</h1>
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800">
+              <CreditCard className="w-6 h-6 text-neutral-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-light tracking-tight">지출 가계부</h1>
+              <p className="text-sm text-neutral-500 mt-0.5">{expenses.length}개의 내역</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -251,32 +264,32 @@ export function ExpenseTable() {
                 className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                추가
+                내역 추가
               </button>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
-            <div className="flex items-center gap-2 text-green-500 mb-1">
-              <TrendingUp className="w-4 h-4" />
-              <span className="text-xs uppercase tracking-wider">수입</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
+          <div className="p-3 sm:p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
+            <div className="flex items-center gap-2 text-green-500 mb-0.5 sm:mb-1">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-xs uppercase tracking-wider font-bold">수입</span>
             </div>
-            <p className="text-xl font-mono text-white">+{formatCurrency(totalIncome)}</p>
+            <p className="text-lg sm:text-xl font-mono text-white">+{formatCurrency(totalIncome)}</p>
           </div>
-          <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
-            <div className="flex items-center gap-2 text-red-500 mb-1">
-              <TrendingDown className="w-4 h-4" />
-              <span className="text-xs uppercase tracking-wider">지출</span>
+          <div className="p-3 sm:p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
+            <div className="flex items-center gap-2 text-red-500 mb-0.5 sm:mb-1">
+              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-xs uppercase tracking-wider font-bold">지출</span>
             </div>
-            <p className="text-xl font-mono text-white">-{formatCurrency(totalExpense)}</p>
+            <p className="text-lg sm:text-xl font-mono text-white">-{formatCurrency(totalExpense)}</p>
           </div>
-          <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
-            <div className="flex items-center gap-2 text-neutral-400 mb-1">
-              <span className="text-xs uppercase tracking-wider">순 합계</span>
+          <div className="p-3 sm:p-4 bg-neutral-950 border border-neutral-800 rounded-lg sm:col-span-2 lg:col-span-1">
+            <div className="flex items-center gap-2 text-neutral-400 mb-0.5 sm:mb-1">
+              <span className="text-[10px] sm:text-xs uppercase tracking-wider font-bold">순 합계</span>
             </div>
-            <p className={`text-xl font-mono ${netTotal >= 0 ? "text-green-500" : "text-red-500"}`}>
+            <p className={`text-lg sm:text-xl font-mono ${netTotal >= 0 ? "text-green-500" : "text-red-500"}`}>
               {netTotal >= 0 ? "+" : "-"}
               {formatCurrency(netTotal)}
             </p>
@@ -288,77 +301,74 @@ export function ExpenseTable() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
             <input
               type="text"
-              placeholder="항목 검색..."
+              placeholder="내역 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 bg-neutral-950 border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
+              className="w-full pl-10 pr-3 py-2 bg-neutral-950 border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 shadow-inner"
             />
           </div>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-            <select
-              value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
-              className="pl-10 pr-8 py-2 bg-neutral-950 border border-neutral-800 rounded-md text-white focus:outline-none focus:border-neutral-600 appearance-none min-w-[140px]"
-            >
-              <option value="">모든 사용자</option>
-              {uniqueUsers.map((user) => (
-                <option key={user} value={user || ""}>
-                  {user}
-                </option>
-              ))}
-            </select>
+          <div className="relative w-full sm:w-auto">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+            <Select value={userFilter} onValueChange={setUserFilter}>
+              <SelectTrigger className="w-full sm:w-auto pl-10 pr-8 bg-neutral-950 border-neutral-800 min-w-[140px]">
+                <SelectValue placeholder="모든 사용자" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">모든 사용자</SelectItem>
+                {uniqueUsers.map((user) => (
+                  <SelectItem key={user} value={user || ""}>
+                    {user}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center gap-1 p-1 bg-neutral-950 border border-neutral-800 rounded-md">
             <button
               onClick={() => setFilterType("all")}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded transition-colors ${filterType === "all" ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+              className={`flex items-center gap-1 px-4 py-1.5 text-xs font-bold rounded transition-all ${filterType === "all" ? "bg-white text-black" : "text-neutral-500 hover:text-white"
                 }`}
             >
-              <Filter className="w-3 h-3" />
               전체
             </button>
             <button
               onClick={() => setFilterType("income")}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded transition-colors ${filterType === "income" ? "bg-green-600 text-white" : "text-neutral-400 hover:text-white"
+              className={`flex items-center gap-1 px-4 py-1.5 text-xs font-bold rounded transition-all ${filterType === "income" ? "bg-green-600 text-white" : "text-neutral-500 hover:text-white"
                 }`}
             >
-              <TrendingUp className="w-3 h-3" />
               수입
             </button>
             <button
               onClick={() => setFilterType("expense")}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded transition-colors ${filterType === "expense" ? "bg-red-600 text-white" : "text-neutral-400 hover:text-white"
+              className={`flex items-center gap-1 px-4 py-1.5 text-xs font-bold rounded transition-all ${filterType === "expense" ? "bg-red-600 text-white" : "text-neutral-500 hover:text-white"
                 }`}
             >
-              <TrendingDown className="w-3 h-3" />
               지출
             </button>
           </div>
         </div>
 
         {/* Add Form */}
-        {/* access_level 1 이상 + showAddForm 일 때만 추가 폼 표시 */}
         {showAddForm && (accessLevel ?? 0) >= 1 && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4 md:p-10 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300">
             <div
-              className="relative w-full max-w-5xl bg-neutral-950 border border-neutral-800 rounded-[32px] overflow-hidden shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-300"
+              className="relative w-full h-full sm:h-auto sm:max-w-5xl bg-neutral-950 border-0 sm:border sm:border-neutral-800 rounded-0 sm:rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
                 {/* Left: Preview Section (Receipt Style) */}
                 <div className="hidden md:flex flex-1 bg-neutral-900/30 p-12 border-r border-neutral-800 flex-col items-center justify-center gap-8 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                  <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
 
                   <div className="relative z-10 w-full max-w-[320px]">
-                    <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.3em] mb-8 text-center opacity-50">Transaction Preview</p>
+                    <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.3em] mb-8 text-center opacity-50">TRANSACTION RECEIPT</p>
 
-                    <div className="bg-white text-black p-8 rounded-3xl shadow-2xl space-y-6 relative overflow-hidden">
+                    <div className="bg-white text-black p-8 rounded-3xl shadow-2xl space-y-6 relative overflow-hidden transition-all duration-500 hover:scale-[1.02]">
                       {/* Receipt Top */}
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Merchant</p>
-                          <p className="text-xl font-black truncate max-w-[180px]">{newExpense.item || "---"}</p>
+                          <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">거래처 및 항목</p>
+                          <p className="text-xl font-black truncate max-w-[180px]">{newExpense.item || "미지정"}</p>
                         </div>
                         <div className={`p-2 rounded-xl ${newExpense.type === "income" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
                           {newExpense.type === "income" ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
@@ -367,20 +377,21 @@ export function ExpenseTable() {
 
                       <div className="space-y-4 pt-4 border-t border-dashed border-neutral-200">
                         <div className="flex justify-between text-[11px]">
-                          <span className="font-bold text-neutral-400 uppercase">Date</span>
-                          <span className="font-black">{newExpense.date || "----.--.--"}</span>
+                          <span className="font-bold text-neutral-400 uppercase">날짜</span>
+                          <span className="font-black font-mono">{newExpense.date || "----.--.--"}</span>
                         </div>
                         <div className="flex justify-between text-[11px]">
-                          <span className="font-bold text-neutral-400 uppercase">User</span>
-                          <span className="font-black">{newExpense.user_id || "---"}</span>
+                          <span className="font-bold text-neutral-400 uppercase">사용자</span>
+                          <span className="font-black">{newExpense.user_id || "미지정"}</span>
                         </div>
                       </div>
 
                       <div className="pt-6 border-t border-dashed border-neutral-200">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1">Total Amount</p>
-                        <p className={`text-4xl font-black ${newExpense.type === "income" ? "text-green-600" : "text-black"}`}>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1">합계 금액</p>
+                        <p className={`text-4xl font-black font-mono ${newExpense.type === "income" ? "text-green-600" : "text-black"}`}>
                           {newExpense.amount ? (newExpense.amount.startsWith('+') || newExpense.amount.startsWith('-') ? '' : (newExpense.type === 'income' ? '+' : '-')) : ''}
                           {newExpense.amount || "0"}
+                          <span className="text-sm ml-1">원</span>
                         </p>
                       </div>
 
@@ -396,19 +407,19 @@ export function ExpenseTable() {
 
                 {/* Right: Input Section */}
                 <div className="flex-1 p-8 flex flex-col bg-black overflow-y-auto custom-scrollbar">
-                  <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center justify-between mb-8 sticky top-0 bg-black pt-2 z-20">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-white text-black shadow-lg">
                         <CreditCard className="w-4 h-4 font-bold" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-bold text-white tracking-tight uppercase">지출 내역</h2>
-                        <p className="text-[9px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5 opacity-60">Track your cashflow accurately</p>
+                        <h2 className="text-lg font-bold text-white tracking-tight uppercase">내역 등록</h2>
+                        <p className="text-[9px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5 opacity-60">정확하게 거래 내역을 기록하세요</p>
                       </div>
                     </div>
                     <button
                       onClick={() => setShowAddForm(false)}
-                      className="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-500 hover:text-white transition-all"
+                      className="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-500 hover:text-white transition-all border border-neutral-800"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -417,18 +428,18 @@ export function ExpenseTable() {
                   <div className="space-y-6 flex-1">
                     <div className="grid grid-cols-1 gap-5">
                       <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Title / Vendor</label>
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">항목 / 거래처</label>
                         <input
                           type="text"
                           placeholder="어디에 사용하셨나요?"
                           value={newExpense.item}
                           onChange={(e) => setNewExpense({ ...newExpense, item: e.target.value })}
-                          className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700"
+                          className="w-full px-4 py-3 bg-neutral-900/30 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 font-semibold"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Amount (Use +/- to set type)</label>
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">금액 (+/- 기호로 유형 자동 분류)</label>
                         <div className="relative">
                           <input
                             type="text"
@@ -439,9 +450,9 @@ export function ExpenseTable() {
                               const newType = val.startsWith("-") ? "expense" : "income"
                               setNewExpense({ ...newExpense, amount: val, type: newType })
                             }}
-                            className={`w-full px-4 py-3.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-lg font-bold focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 ${newExpense.type === "income" ? "text-green-500" : "text-red-500"}`}
+                            className={`w-full px-4 py-3.5 bg-neutral-900/30 border border-neutral-800 rounded-xl text-lg font-black focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 font-mono ${newExpense.type === "income" ? "text-green-500" : "text-red-500"}`}
                           />
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20">
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 transition-opacity">
                             {newExpense.type === "income" ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                           </div>
                         </div>
@@ -450,51 +461,51 @@ export function ExpenseTable() {
 
                     <div className="grid grid-cols-2 gap-5">
                       <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Date</label>
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">날짜</label>
                         <input
                           type="date"
                           value={newExpense.date}
                           onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-white transition-all [color-scheme:dark]"
+                          className="w-full px-4 py-2.5 bg-neutral-900/30 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-white transition-all [color-scheme:dark] font-mono font-bold"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">User</label>
+                        <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">사용자</label>
                         <input
                           type="text"
                           placeholder="결제자 성함"
                           value={newExpense.user_id}
                           onChange={(e) => setNewExpense({ ...newExpense, user_id: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700"
+                          className="w-full px-4 py-2.5 bg-neutral-900/30 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 font-bold"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">Note (Optional)</label>
+                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">상세 설명 (선택 사항)</label>
                       <textarea
                         placeholder="상세 내용을 적어주세요"
                         value={newExpense.description}
                         onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
                         rows={2}
-                        className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 resize-none"
+                        className="w-full px-4 py-3 bg-neutral-900/30 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all placeholder:text-neutral-700 resize-none font-semibold italic opacity-80"
                       />
                     </div>
                   </div>
 
-                  <div className="pt-8 mt-auto border-t border-neutral-800 flex gap-3">
+                  <div className="pt-8 mt-auto border-t border-neutral-800 flex gap-3 sticky bottom-0 bg-black py-4 z-20">
                     <button
                       onClick={() => setShowAddForm(false)}
                       className="flex-1 py-3 text-[9px] font-bold text-neutral-500 hover:text-white transition-all uppercase tracking-[0.1em]"
                     >
-                      Cancel
+                      취소
                     </button>
                     <button
                       onClick={handleAdd}
                       disabled={!newExpense.item.trim() || !newExpense.amount}
-                      className="flex-[1.5] py-3 bg-white text-black text-[10px] font-bold rounded-xl hover:bg-neutral-200 transition-all shadow-lg disabled:opacity-20 active:scale-95 uppercase tracking-[0.1em]"
+                      className="flex-[1.5] py-3 bg-white text-black text-[10px] font-black rounded-xl hover:bg-neutral-200 transition-all shadow-lg shadow-white/5 disabled:opacity-20 active:scale-95 uppercase tracking-[0.1em]"
                     >
-                      Record Transaction
+                      기록 완료
                     </button>
                   </div>
                 </div>
@@ -505,165 +516,166 @@ export function ExpenseTable() {
 
 
         {/* Table */}
-        <div className="border border-neutral-800 rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-neutral-800 bg-neutral-950">
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  날짜
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  항목
-                </th>
-                <th className="px-6 py-4 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  유형
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  금액
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    <User className="w-3 h-3" />
+        <div className="border border-neutral-800 rounded-2xl overflow-hidden bg-neutral-950/20 backdrop-blur-sm">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full min-w-[800px]">
+              <thead>
+                <tr className="border-b border-neutral-800 bg-neutral-900/50">
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+                    날짜
+                  </th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+                    항목
+                  </th>
+                  <th className="px-6 py-4 text-center text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+                    유형
+                  </th>
+                  <th className="px-6 py-4 text-right text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+                    금액
+                  </th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
                     사용자
-                  </div>
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider w-28">
-                  작업
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {filteredExpenses.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-neutral-600">
-                    데이터가 없습니다
-                  </td>
+                  </th>
+                  <th className="px-6 py-4 text-right text-[10px] font-bold text-neutral-500 uppercase tracking-widest w-28">
+                    관리
+                  </th>
                 </tr>
-              ) : (
-                filteredExpenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-neutral-950 transition-colors">
-                    {editingId === expense.id ? (
-                      <>
-                        <td className="px-6 py-4">
-                          <input
-                            type="date"
-                            value={editForm.date}
-                            onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                            className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <input
-                            type="text"
-                            value={editForm.item}
-                            onChange={(e) => setEditForm({ ...editForm, item: e.target.value })}
-                            className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
-                          />
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 ${editForm.type === "income" ? "bg-green-600/20 text-green-500" : "bg-red-600/20 text-red-500"} text-xs rounded-full`}>
-                            {editForm.type === "income" ? "수입" : "지출"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <input
-                            type="text"
-                            value={editForm.amount}
-                            onChange={(e) => {
-                              const val = e.target.value
-                              const newType = val.startsWith("-") ? "expense" : "income"
-                              setEditForm({ ...editForm, amount: val, type: newType })
-                            }}
-                            className={`w-full px-2 py-1 bg-black border border-neutral-700 rounded text-sm text-right focus:outline-none focus:border-neutral-500 ${editForm.type === "income" ? "text-green-500" : "text-red-500"
-                              }`}
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <input
-                            type="text"
-                            value={editForm.user_id}
-                            onChange={(e) => setEditForm({ ...editForm, user_id: e.target.value })}
-                            placeholder="사용자"
-                            className="w-full px-2 py-1 bg-black border border-neutral-700 rounded text-white text-sm focus:outline-none focus:border-neutral-500"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-end gap-1">
-                            <button
-                              onClick={() => handleUpdate(expense.id)}
-                              className="p-1.5 text-green-500 hover:bg-neutral-800 rounded transition-colors"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setEditingId(null)}
-                              className="p-1.5 text-neutral-500 hover:bg-neutral-800 rounded transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="px-6 py-4 text-sm text-neutral-300">{expense.date}</td>
-                        <td className="px-6 py-4 text-sm text-white">{expense.item}</td>
-                        <td className="px-6 py-4 text-center">
-                          {expense.type === "income" ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-600/20 text-green-500 text-xs rounded-full">
-                              <TrendingUp className="w-3 h-3" />
-                              수입
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600/20 text-red-500 text-xs rounded-full">
-                              <TrendingDown className="w-3 h-3" />
-                              지출
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right font-mono">
-                          <span className={expense.type === "income" ? "text-green-500" : "text-red-400"}>
-                            {expense.type === "income" ? "+" : "-"}
-                            {formatCurrency(expense.amount)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-neutral-400">{expense.user_id || "-"}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-end gap-1">
-                            <button
-                              onClick={() => router.push(`/expense/${expense.id}`)}
-                              className="p-1.5 text-neutral-600 hover:text-blue-400 hover:bg-neutral-800 rounded transition-colors"
-                              title="상세보기"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            {/* access_level 1 이상: 인라인 수정 버튼 */}
-                            {(accessLevel ?? 0) >= 1 && (
-                              <button
-                                onClick={() => startEdit(expense)}
-                                className="p-1.5 text-neutral-600 hover:text-white hover:bg-neutral-800 rounded transition-colors"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                            )}
-                            {/* access_level 2 이상: 삭제 버튼 */}
-                            {(accessLevel ?? 0) >= 2 && (
-                              <button
-                                onClick={() => handleDelete(expense.id)}
-                                className="p-1.5 text-neutral-600 hover:text-red-500 hover:bg-neutral-800 rounded transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </>
-                    )}
+              </thead>
+              <tbody className="divide-y divide-neutral-900">
+                {filteredExpenses.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-20 text-center text-neutral-600 font-bold uppercase tracking-widest text-[10px]">
+                      기록된 내역이 없습니다
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredExpenses.map((expense) => (
+                    <tr key={expense.id} className="hover:bg-neutral-900/50 transition-colors group">
+                      {editingId === expense.id ? (
+                        <>
+                          <td className="px-6 py-4">
+                            <input
+                              type="date"
+                              value={editForm.date}
+                              onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                              className="w-full px-2 py-1.5 bg-black border border-neutral-700 rounded-lg text-white text-xs focus:outline-none focus:border-white transition-all font-mono"
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="text"
+                              value={editForm.item}
+                              onChange={(e) => setEditForm({ ...editForm, item: e.target.value })}
+                              className="w-full px-2 py-1.5 bg-black border border-neutral-700 rounded-lg text-white text-xs focus:outline-none focus:border-white transition-all font-bold"
+                            />
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 ${editForm.type === "income" ? "bg-green-600/20 text-green-500" : "bg-red-600/20 text-red-500"} text-[10px] font-bold rounded-full border border-current opacity-60`}>
+                              {editForm.type === "income" ? "수입" : "지출"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="text"
+                              value={editForm.amount}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                const newType = val.startsWith("-") ? "expense" : "income"
+                                setEditForm({ ...editForm, amount: val, type: newType })
+                              }}
+                              className={`w-full px-2 py-1.5 bg-black border border-neutral-700 rounded-lg text-xs text-right focus:outline-none focus:border-white transition-all font-mono font-bold ${editForm.type === "income" ? "text-green-500" : "text-red-500"
+                                }`}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="text"
+                              value={editForm.user_id}
+                              onChange={(e) => setEditForm({ ...editForm, user_id: e.target.value })}
+                              placeholder="사용자"
+                              className="w-full px-2 py-1.5 bg-black border border-neutral-700 rounded-lg text-white text-xs focus:outline-none focus:border-white transition-all font-bold"
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex justify-end gap-1">
+                              <button
+                                onClick={() => handleUpdate(expense.id)}
+                                className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg transition-all"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="p-1.5 text-neutral-500 hover:bg-neutral-800 rounded-lg transition-all"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-6 py-4 text-xs text-neutral-500 font-mono">{expense.date}</td>
+                          <td className="px-6 py-4 text-xs text-white font-bold">{expense.item}</td>
+                          <td className="px-6 py-4 text-center">
+                            {expense.type === "income" ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-green-500/10 text-green-500 text-[10px] font-black rounded-full border border-green-500/20">
+                                <TrendingUp className="w-3 h-3" />
+                                수입
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-red-500/10 text-red-500 text-[10px] font-black rounded-full border border-red-500/20">
+                                <TrendingDown className="w-3 h-3" />
+                                지출
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-right font-mono font-black">
+                            <span className={expense.type === "income" ? "text-green-500" : "text-white"}>
+                              {expense.type === "income" ? "+" : "-"}
+                              {formatCurrency(expense.amount)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-xs text-neutral-400 font-bold">{expense.user_id || "-"}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex justify-end gap-1 opacity-10 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => router.push(`/expense/${expense.id}`)}
+                                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-all"
+                                title="상세보기"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              {/* access_level 1 이상: 인라인 수정 버튼 */}
+                              {(accessLevel ?? 0) >= 1 && (
+                                <button
+                                  onClick={() => startEdit(expense)}
+                                  className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-all"
+                                  title="수정"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              )}
+                              {/* access_level 2 이상: 삭제 버튼 */}
+                              {(accessLevel ?? 0) >= 2 && (
+                                <button
+                                  onClick={() => handleDelete(expense.id)}
+                                  className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                  title="삭제"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

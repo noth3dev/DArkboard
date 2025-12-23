@@ -167,58 +167,73 @@ export function NotificationCenter() {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="p-4 border-b border-neutral-800 flex items-center justify-between bg-black/20">
-                        <h3 className="text-sm font-semibold">알림</h3>
+                <div className="fixed md:absolute top-[65px] md:top-full left-0 md:left-auto md:right-0 md:mt-4 w-full md:w-[400px] bg-black/95 md:bg-neutral-950/90 backdrop-blur-3xl md:border border-b border-neutral-800 md:rounded-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] z-[100] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="px-6 py-4 border-b border-neutral-800/50 flex items-center justify-between bg-white/[0.02]">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-white uppercase tracking-wider">알림</span>
+                            {unreadCount > 0 && (
+                                <span className="px-2 py-0.5 bg-blue-500 text-white text-[10px] font-black rounded-full">
+                                    {unreadCount}
+                                </span>
+                            )}
+                        </div>
                         {unreadCount > 0 && (
                             <button
                                 onClick={markAllAsRead}
-                                className="text-[10px] text-neutral-400 hover:text-white flex items-center gap-1"
+                                className="text-[11px] text-neutral-400 hover:text-white transition-colors flex items-center gap-1.5 font-bold"
                             >
-                                <Check className="w-3 h-3" /> 모두 읽음
+                                <Check className="w-3.5 h-3.5" /> 모두 읽음
                             </button>
                         )}
                     </div>
 
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="max-h-[calc(100vh-120px)] md:max-h-[500px] overflow-y-auto custom-scrollbar">
                         {notifications.length === 0 ? (
-                            <div className="p-8 text-center">
-                                <Bell className="w-8 h-8 text-neutral-700 mx-auto mb-2 opacity-20" />
-                                <p className="text-sm text-neutral-500">알림이 없습니다.</p>
+                            <div className="py-20 px-8 text-center bg-black/20">
+                                <div className="w-16 h-16 bg-neutral-900/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-neutral-800/50 rotate-3">
+                                    <Bell className="w-6 h-6 text-neutral-700" />
+                                </div>
+                                <p className="text-sm text-neutral-400 font-bold">새로운 알림 없음</p>
+                                <p className="text-[11px] text-neutral-600 mt-1 max-w-[200px] mx-auto">좀 쉬는 날일지도?</p>
                             </div>
                         ) : (
-                            notifications.map((notification) => (
-                                <div
-                                    key={notification.id}
-                                    onClick={() => !notification.is_read && markAsRead(notification.id)}
-                                    className={`p-4 border-b border-neutral-800/50 hover:bg-neutral-800/50 transition-colors cursor-pointer group relative ${!notification.is_read ? "bg-white/5" : ""
-                                        }`}
-                                >
-                                    <div className="pr-6">
-                                        <p className="text-xs text-white leading-relaxed">
-                                            {notification.content}
-                                        </p>
-                                        <p className="text-[10px] text-neutral-500 mt-1">
-                                            {timeAgo(notification.created_at)}
-                                        </p>
-                                    </div>
-                                    {!notification.is_read && (
-                                        <div className="absolute top-4 right-10 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                                    )}
-                                    <button
-                                        onClick={(e) => deleteNotification(notification.id, e)}
-                                        className="absolute top-3.5 right-3 p-1 text-neutral-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                            <div className="divide-y divide-neutral-800/20">
+                                {notifications.map((notification) => (
+                                    <div
+                                        key={notification.id}
+                                        onClick={() => !notification.is_read && markAsRead(notification.id)}
+                                        className={`px-6 py-5 hover:bg-white/[0.03] transition-all cursor-pointer group relative flex gap-4 ${!notification.is_read ? "bg-blue-500/[0.04]" : ""}`}
                                     >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                            ))
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <p className={`text-xs leading-relaxed ${notification.is_read ? "text-neutral-400" : "text-white font-medium"}`}>
+                                                    {notification.content}
+                                                </p>
+                                                {!notification.is_read && (
+                                                    <div className="mt-1.5 shrink-0 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.8)]" />
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3 mt-3">
+                                                <span className="text-[10px] text-neutral-600 font-bold uppercase tracking-tight">
+                                                    {timeAgo(notification.created_at)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={(e) => deleteNotification(notification.id, e)}
+                                            className="p-2 text-neutral-700 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-all active:bg-red-500/10 rounded-xl shrink-0 self-center"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
 
-                    <div className="p-2 border-t border-neutral-800 bg-black/20 text-center">
-                        <button className="text-[10px] text-neutral-500 hover:text-neutral-300">
-                            이전 알림 더보기
+                    <div className="p-4 border-t border-neutral-800/50 bg-white/[0.01] text-center">
+                        <button className="text-[11px] text-neutral-500 hover:text-white font-black uppercase tracking-widest transition-colors">
+                            이전 알림
                         </button>
                     </div>
                 </div>

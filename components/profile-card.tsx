@@ -58,16 +58,15 @@ export function ProfileCard({ name, nameEng, role, displayName, phone }: Profile
   return (
     <div
       ref={containerRef}
-      className={`w-full max-w-2xl aspect-[16/9] flex items-center justify-center transform transition-all duration-500 ease-out ${
-        entered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-10"
-      }`}
+      className={`w-full max-w-2xl aspect-[16/9] flex items-center justify-center transform transition-all duration-500 ease-out [container-type:inline-size] ${entered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-10"
+        }`}
       style={{ perspective: 1400 }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
     >
       <div
-        className="w-full h-full bg-transparent text-black relative shadow-[0_18px_45px_rgba(0,0,0,0.28)] rounded-[18px] transition-transform duration-200 ease-out cursor-pointer"
+        className="w-full h-full bg-transparent text-black relative shadow-[0_2vw_5vw_rgba(0,0,0,0.2)] rounded-[2.5cqw] transition-transform duration-200 ease-out cursor-pointer"
         style={{
           transform: transform,
           transformStyle: "preserve-3d",
@@ -75,22 +74,22 @@ export function ProfileCard({ name, nameEng, role, displayName, phone }: Profile
       >
         {/* 앞면 */}
         <div
-          className="absolute inset-0 bg-white rounded-[18px] flex flex-col"
+          className="absolute inset-0 bg-white rounded-[2.5cqw] flex flex-col overflow-hidden"
           style={{ backfaceVisibility: "hidden" }}
         >
           {/* 상단 영역 */}
-          <div className="flex-1 flex justify-between px-8 md:px-10 lg:px-11 pt-8 md:pt-10">
+          <div className="flex-1 flex justify-between px-[6cqw] pt-[6cqw]">
             {/* 이름 / 영문 이름(옆) / 롤(아래) */}
-            <div className="flex flex-col gap-2.5">
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">{name}</h1>
+            <div className="flex flex-col gap-[1cqw]">
+              <div className="flex items-baseline gap-[1.5cqw] whitespace-nowrap">
+                <h1 className="text-[6cqw] font-bold tracking-tight">{name}</h1>
                 {nameEng && (
-                  <span className="text-base md:text-lg lg:text-xl font-semibold text-black">{nameEng}</span>
+                  <span className="text-[3cqw] font-semibold text-neutral-400">{nameEng}</span>
                 )}
               </div>
 
               {role && (
-                <p className="text-base md:text-lg lg:text-xl text-neutral-400 font-semibold whitespace-pre-line">
+                <p className="text-[2.8cqw] text-neutral-400 font-semibold whitespace-pre-line leading-tight">
                   {role}
                 </p>
               )}
@@ -98,20 +97,20 @@ export function ProfileCard({ name, nameEng, role, displayName, phone }: Profile
 
             {/* Ark 로고 */}
             <div className="flex items-start">
-              <img src="/ark.svg" alt="Ark" className="h-9 md:h-11 lg:h-13 w-auto" />
+              <img src="/ark.svg" alt="Ark" className="h-[7cqw] w-auto" />
             </div>
           </div>
 
           {/* 하단 영역 */}
-          <div className="flex items-end justify-between px-8 md:px-10 lg:px-11 pb-6 md:pb-8">
+          <div className="flex items-end justify-between px-[6cqw] pb-[5cqw]">
             {/* display_name / phone */}
-            <div className="space-y-1 text-sm md:text-base leading-tight">
+            <div className="space-y-[0.5cqw] text-[2.5cqw] leading-tight">
               {displayName && <p className="font-bold">{displayName}</p>}
               {phone && <p className="text-neutral-700">{phone}</p>}
             </div>
 
             {/* 슬로건 */}
-            <div className="text-right text-xs md:text-sm leading-relaxed tracking-[0.16em] uppercase">
+            <div className="text-right text-[1.8cqw] leading-relaxed tracking-[0.16em] uppercase">
               <p className="text-neutral-500">Make</p>
               <p className="text-neutral-500">Yourself</p>
               <p className="text-neutral-500">
@@ -124,7 +123,7 @@ export function ProfileCard({ name, nameEng, role, displayName, phone }: Profile
 
         {/* 뒷면 */}
         <div
-          className="absolute inset-0 bg-white rounded-[18px] flex flex-col text-center px-8 md:px-10"
+          className="absolute inset-0 bg-white rounded-[2.5cqw] flex flex-col text-center px-[6cqw]"
           style={{
             transform: "rotateY(180deg)",
             backfaceVisibility: "hidden",
@@ -134,17 +133,17 @@ export function ProfileCard({ name, nameEng, role, displayName, phone }: Profile
           <div className="flex-1" />
 
           {/* 중앙 Ark 로고 + 슬로건 한 줄 (카드 정중앙) */}
-          <div className="flex flex-col items-center gap-4 flex-none">
-            <img src="/ark.svg" alt="Ark" className="h-8 md:h-10 lg:h-11 w-auto" />
-            <p className="text-[10px] md:text-xs tracking-[0.22em] uppercase">
+          <div className="flex flex-col items-center gap-[2cqw] flex-none">
+            <img src="/ark.svg" alt="Ark" className="h-[6.5cqw] w-auto" />
+            <p className="text-[1.8cqw] tracking-[0.22em] uppercase">
               <span className="text-neutral-500">Make Yourself Tradem</span>
               <span className="text-black font-semibold">Ark</span>
             </p>
           </div>
 
           {/* 하단 도메인 */}
-          <div className="flex-1 flex items-end justify-center pb-6 md:pb-7">
-            <p className="text-[11px] md:text-xs text-neutral-700 tracking-[0.18em]">arks.run</p>
+          <div className="flex-1 flex items-end justify-center pb-[5cqw]">
+            <p className="text-[2cqw] text-neutral-700 tracking-[0.18em]">arks.run</p>
           </div>
         </div>
       </div>

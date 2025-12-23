@@ -160,17 +160,14 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-
-        <NotificationCenter />
-
-        {/* 데스크톱 드롭다운 메뉴 */}
+        {/* 유저 배지 (드롭다운 메뉴) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1 sm:py-1.5 bg-neutral-900/50 border border-neutral-800 rounded-full hover:bg-neutral-800 transition-all outline-none">
+            <button className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 bg-neutral-900/50 border border-neutral-800 rounded-full hover:bg-neutral-800 transition-all outline-none">
               <div className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
               <span className="text-[10px] sm:text-xs text-neutral-400 font-medium truncate max-w-[60px] sm:max-w-[100px]">{baseDisplayName}</span>
-              <div className="w-px h-3 bg-neutral-800" />
-              <span className="text-[8px] sm:text-[9px] font-black text-neutral-600 uppercase tracking-wider">{roman}</span>
+              <div className="w-px h-3 bg-neutral-800 hidden sm:block" />
+              <span className="text-[8px] sm:text-[9px] font-black text-neutral-600 uppercase tracking-wider hidden sm:block">{roman}</span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -197,6 +194,8 @@ export function Header() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <NotificationCenter />
 
         {/* 모바일 햄버거 메뉴 버튼 */}
         <button

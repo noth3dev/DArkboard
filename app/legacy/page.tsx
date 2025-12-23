@@ -118,6 +118,19 @@ export default function LegacyPage() {
         return `${val.toLocaleString()}원`
     }
 
+    const renderAwardName = (name: string, mainClass: string, subClass: string) => {
+        const match = name.match(/^(.*?)\((.*?)\)$/)
+        if (match) {
+            return (
+                <div className="flex flex-col">
+                    <span className={mainClass}>{match[1].trim()}</span>
+                    <span className={subClass}>{match[2]}</span>
+                </div>
+            )
+        }
+        return <span className={mainClass}>{name}</span>
+    }
+
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files
         if (!files || files.length === 0) return
@@ -275,21 +288,21 @@ export default function LegacyPage() {
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                         <div className="flex items-center gap-6">
                             <div>
-                                <h1 className="text-4xl md:text-3xl font-light tracking-tight text-white/90">명예의 전당</h1>
-                                <p className="text-[12px] text-neutral-500 font-black uppercase tracking mt-2 opacity-60">ARK LEGACY & AWARDS ARCHIVE</p>
+                                <h1 className="text-3xl md:text-4xl font-light tracking-tight text-white/90">명예의 전당</h1>
+                                <p className="text-[11px] sm:text-[12px] text-neutral-500 font-black uppercase tracking mt-2 opacity-60">ARK LEGACY & AWARDS ARCHIVE</p>
                             </div>
                         </div>
 
                         {/* Total Stats */}
-                        <div className="flex items-center gap-8 md:px-10 md:py-4 bg-neutral-900/30 border border-neutral-800/50 rounded-[32px] md:h-24">
-                            <div className="text-center md:text-left">
-                                <p className="text-[10px] text-neutral-600 font-black uppercase tracking-widest mb-1">Total Awards</p>
-                                <p className="text-2xl font-bold text-white tracking-tight">{records.length}<span className="text-[10px] text-neutral-500 ml-1">건</span></p>
+                        <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-10 p-5 sm:p-0 sm:md:px-10 sm:md:py-4 bg-neutral-900/30 border border-neutral-800/50 rounded-[28px] sm:rounded-[32px] md:h-24 w-full sm:w-auto">
+                            <div className="flex-1 sm:flex-none text-center sm:text-left">
+                                <p className="text-[9px] sm:text-[10px] text-neutral-600 font-black uppercase tracking-widest mb-1">Total Awards</p>
+                                <p className="text-xl sm:text-2xl font-bold text-white tracking-tight">{records.length}<span className="text-[10px] text-neutral-500 ml-1">건</span></p>
                             </div>
-                            <div className="w-px h-10 bg-neutral-800" />
-                            <div className="text-center md:text-left">
-                                <p className="text-[10px] text-neutral-600 font-black uppercase tracking-widest mb-1">Cumulative Prize</p>
-                                <p className="text-2xl font-bold text-emerald-500 tracking-tight">{formatCurrency(totalPrizeMoney)}</p>
+                            <div className="w-px h-8 sm:h-10 bg-neutral-800/50" />
+                            <div className="flex-[1.5] sm:flex-none text-center sm:text-left">
+                                <p className="text-[9px] sm:text-[10px] text-neutral-600 font-black uppercase tracking-widest mb-1">Cumulative Prize</p>
+                                <p className="text-xl sm:text-2xl font-bold text-emerald-500 tracking-tight whitespace-nowrap">{formatCurrency(totalPrizeMoney)}</p>
                             </div>
                         </div>
                     </div>
@@ -365,7 +378,9 @@ export default function LegacyPage() {
                                             <div className="flex justify-between items-start">
                                                 <div className="flex flex-col">
                                                     <span className="text-[10px] text-yellow-500 font-black tracking-[0.2em] uppercase mb-1">{record.competition_name}</span>
-                                                    <h3 className="text-2xl font-bold text-white group-hover:text-yellow-500 transition-colors">{record.award_name}</h3>
+                                                    <h3 className="group-hover:text-yellow-500 transition-colors">
+                                                        {renderAwardName(record.award_name, "text-2xl font-bold text-white", "text-sm font-medium text-neutral-400 mt-0.5")}
+                                                    </h3>
                                                 </div>
                                                 <span className="text-[9px] font-black text-neutral-500 bg-neutral-900 px-3 py-1.5 rounded-full border border-neutral-800 tracking-widest uppercase">
                                                     {record.award_date.replace(/-/g, '.')}
@@ -441,7 +456,9 @@ export default function LegacyPage() {
                                     </div>
                                     <div>
                                         <p className="text-[11px] text-yellow-500 font-black uppercase tracking-[0.3em] mb-1">{selectedRecord.competition_name}</p>
-                                        <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">{selectedRecord.award_name}</h2>
+                                        <h2 className="tracking-tight">
+                                            {renderAwardName(selectedRecord.award_name, "text-3xl md:text-4xl font-bold text-white", "text-lg md:text-xl font-medium text-neutral-400 mt-2")}
+                                        </h2>
                                     </div>
                                 </div>
                                 <button
@@ -550,7 +567,9 @@ export default function LegacyPage() {
                                     <div className="space-y-4">
                                         <div>
                                             <p className="text-[9px] text-yellow-500/60 font-black uppercase tracking-widest">{formData.competition_name || "New Competition"}</p>
-                                            <h3 className="text-xl font-bold text-white">{formData.award_name || "Award Name"}</h3>
+                                            <div className="mt-1">
+                                                {renderAwardName(formData.award_name || "Award Name", "text-xl font-bold text-white", "text-[12px] font-medium text-neutral-400 mt-0.5")}
+                                            </div>
                                         </div>
                                         {formData.prize_money && <p className="text-[10px] font-bold text-emerald-500">{formData.prize_money}</p>}
                                     </div>

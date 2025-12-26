@@ -39,7 +39,7 @@ export function AuthForm() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 pb-24">
       <div className="w-full max-w-sm animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="mb-12 flex justify-center">
-          <img src="/homewArk.svg" alt="homewArk" className="w-auto h-8" />
+          <img src="/teamwark.svg" alt="homewArk" className="w-auto h-8" />
         </div>
 
         <div className="glass border border-border/50 rounded-[32px] p-10 shadow-2xl">

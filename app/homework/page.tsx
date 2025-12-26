@@ -80,9 +80,9 @@ export default function HomeworkPage() {
                     if (assignError) {
                         console.warn("Table 'homework_assignees' not found. Ensure mig_002 migration is applied. Falling back to all homeworks.")
                         // Fallback: if table is missing, don't filter (or handle as needed)
-                        setMyAssignments(new Set(hwData.map((h: Homework) => h.id)))
+                        setMyAssignments(new Set<string>((hwData || []).map((h: Homework) => h.id)))
                     } else {
-                        const assignSet = new Set(assignData?.map(a => a.homework_id) || [])
+                        const assignSet = new Set<string>(assignData?.map((a: { homework_id: string }) => a.homework_id) || [])
                         setMyAssignments(assignSet)
                     }
                 } catch (e) {
@@ -279,7 +279,6 @@ export default function HomeworkPage() {
                     })}
                 </div>
 
-                {/* Submit Mission Modal */}
                 {showSubmitModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-background/80 backdrop-blur-md transition-all">
                         <div className="relative w-full max-w-2xl bg-card border border-border rounded-[32px] p-8 shadow-2xl overflow-hidden">

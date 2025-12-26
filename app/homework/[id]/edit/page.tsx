@@ -40,8 +40,8 @@ type Homework = {
 type Problem = {
     id: string
     title: string
-    type: string
-    order_index: number
+    submission_format: string
+    sort_order: number
 }
 
 type Group = {
@@ -71,8 +71,8 @@ function SortableProblem({ id, hwId, problem, onDelete }: { id: string, hwId: st
         transition,
     }
 
-    const getTypeIcon = (type: string) => {
-        switch (type) {
+    const getTypeIcon = (format: string) => {
+        switch (format) {
             case 'quiz': return <HelpCircle className="w-4 h-4 text-orange-400" />
             case 'code': return <Code2 className="w-4 h-4 text-blue-400" />
             default: return <BookOpen className="w-4 h-4 text-muted-foreground" />
@@ -85,13 +85,13 @@ function SortableProblem({ id, hwId, problem, onDelete }: { id: string, hwId: st
                 <GripVertical className="w-5 h-5" />
             </button>
             <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center border border-white/5 shrink-0">
-                {getTypeIcon(problem.type)}
+                {getTypeIcon(problem.submission_format)}
             </div>
             <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-bold text-foreground truncate font-suit">{problem.title}</h4>
                 <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] font-medium text-muted-foreground/50 font-mono">ID: {problem.id.slice(0, 4)}</span>
-                    <span className="text-[9px] font-bold uppercase text-muted-foreground/40 tracking-wider px-1.5 py-0.5 rounded bg-white/5 border border-white/5">{problem.type}</span>
+                    <span className="text-[9px] font-bold uppercase text-muted-foreground/40 tracking-wider px-1.5 py-0.5 rounded bg-white/5 border border-white/5">{problem.submission_format}</span>
                 </div>
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -148,7 +148,7 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
             setHomework({ ...hw, description: hw.description || '', due_date: hw.due_date || '' })
 
             // 2. Fetch Problems
-            const { data: probs, error: probError } = await supabase.from('problems').select('*').eq('homework_id', id).order('order_index', { ascending: true })
+            const { data: probs, error: probError } = await supabase.from('problems').select('*').eq('homework_id', id).order('sort_order', { ascending: true })
             // If problems table not exist or error, might just be empty.
             if (!probError && probs) setProblems(probs)
 
@@ -196,7 +196,7 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
 
     // --- Actions ---
 
-    const handleSave = async () => {
+    const handleSave = async (silent = false) => {
         if (!homework) return
         setSaving(true)
         try {
@@ -244,17 +244,29 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
             // Promise.all
             if (problems.length > 0) {
                 const updates = problems.map((p, index) =>
-                    supabase.from('problems').update({ order_index: index }).eq('id', p.id)
+                    supabase.from('problems').update({ sort_order: index }).eq('id', p.id)
                 )
                 await Promise.all(updates)
             }
 
-            alert("과제가 성공적으로 업데이트되었습니다.")
+            if (!silent) {
+                alert("과제가 성공적으로 업데이트되었습니다.")
+                router.push(`/homework/${id}`)
+            }
+            return true
         } catch (e) {
             console.error(e)
             alert("변경사항 저장에 실패했습니다.")
+            return false
         } finally {
             setSaving(false)
+        }
+    }
+
+    const handleAddProblem = async () => {
+        const success = await handleSave(true)
+        if (success) {
+            router.push(`/homework/${id}/problem/new`)
         }
     }
 
@@ -342,7 +354,7 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
                             <Trash2 className="w-5 h-5" />
                         </button>
                         <button
-                            onClick={handleSave}
+                            onClick={() => handleSave()}
                             disabled={saving}
                             className="h-12 px-8 bg-foreground text-background rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-xl shadow-white/5"
                         >
@@ -508,13 +520,14 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
                                         <p className="text-[10px] text-muted-foreground font-bold font-suit uppercase tracking-widest mt-1">{problems.length}개의 문제가 포함됨</p>
                                     </div>
                                 </div>
-                                <Link
-                                    href={`/homework/${id}/problem/new`}
-                                    className="h-12 pl-5 pr-6 bg-foreground text-background rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-3 shadow-lg shadow-white/5"
+                                <button
+                                    onClick={handleAddProblem}
+                                    disabled={saving}
+                                    className="h-12 pl-5 pr-6 bg-foreground text-background rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-3 shadow-lg shadow-white/5 disabled:opacity-50"
                                 >
                                     <Plus className="w-5 h-5" />
-                                    <span>문제 추가</span>
-                                </Link>
+                                    <span>{saving ? "저장 중..." : "문제 추가"}</span>
+                                </button>
                             </div>
 
                             <DndContext

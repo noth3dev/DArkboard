@@ -289,7 +289,7 @@ export default function ProblemEditPage({ params }: { params: Promise<{ id: stri
             }
 
             router.refresh()
-            router.push(`/homework/${id}`)
+            router.push(`/homework/${id}/edit`)
         } catch (err) {
             console.error("Error saving problem:", err)
             alert("문제 저장 중 오류가 발생했습니다.")
@@ -358,7 +358,7 @@ export default function ProblemEditPage({ params }: { params: Promise<{ id: stri
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                placeholder="식별자: 전술적 컴포넌트 마스터리"
+                                placeholder="라면 몰래먹고오기"
                                 className="w-full px-8 py-6 bg-transparent border-b border-neutral-800 text-2xl font-black outline-none focus:border-white transition-all placeholder:text-neutral-900 tracking-tighter"
                             />
                         </div>

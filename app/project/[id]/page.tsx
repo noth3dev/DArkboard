@@ -281,7 +281,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
 
     async function handleUpdate() {
-        if ((accessLevel ?? 0) < 1) return
+        if ((accessLevel ?? 0) < 3) return
         if (!editForm.name.trim()) return
 
         try {
@@ -311,21 +311,44 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
 
     async function handleDelete() {
-        if ((accessLevel ?? 0) < 2) return
-        if (!confirm("정말 삭제하시겠습니까?")) return
+        if ((accessLevel ?? 0) < 4) return
+        if (!confirm("정말 이 프로젝트를 삭제하시겠습니까? 관련 모든 파일과 데이터가 영구 삭제됩니다.")) return
 
         try {
             const supabase = getSupabase()
+
+            // 1. Fetch all assets to delete their storage files
+            const { data: assets } = await supabase
+                .from("project_assets")
+                .select("url")
+                .eq("project_id", id)
+
+            if (assets && assets.length > 0) {
+                const storagePaths = assets
+                    .filter(a => a.url.includes('project-assets'))
+                    .map(a => {
+                        const parts = a.url.split('/project-assets/')
+                        return parts.length > 1 ? decodeURIComponent(parts[1]) : null
+                    })
+                    .filter((p): p is string => p !== null)
+
+                if (storagePaths.length > 0) {
+                    await supabase.storage.from('project-assets').remove(storagePaths)
+                }
+            }
+
+            // 2. Delete from DB (The children tasks/assets should be handled by DB CASCADE or manual cleanup if needed)
             const { error } = await supabase.from("projects").delete().eq("id", id)
             if (error) throw error
             router.push("/project")
         } catch (err) {
             console.error("Error deleting project:", err)
+            alert("프로젝트 삭제 중 오류가 발생했습니다.")
         }
     }
 
     async function handleAddMember() {
-        if ((accessLevel ?? 0) < 1 || !selectedMember) return
+        if ((accessLevel ?? 0) < 3 || !selectedMember) return
 
         try {
             const supabase = getSupabase()
@@ -353,7 +376,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
 
     async function handleRemoveMember(userUuid: string) {
-        if ((accessLevel ?? 0) < 1) return
+        if ((accessLevel ?? 0) < 3) return
         try {
             const supabase = getSupabase()
 
@@ -386,7 +409,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
 
     async function handleAddTask(status?: Task["status"]) {
-        if ((accessLevel ?? 0) < 1 || !newTask.title.trim()) return
+        if ((accessLevel ?? 0) < 3 || !newTask.title.trim()) return
 
         try {
             const supabase = getSupabase()
@@ -420,7 +443,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
 
     async function handleUpdateTaskStatus(taskId: string, newStatus: Task["status"]) {
-        if ((accessLevel ?? 0) < 1) return
+        if ((accessLevel ?? 0) < 3) return
         try {
             const supabase = getSupabase()
             const { error } = await supabase.from("project_tasks").update({ status: newStatus }).eq("id", taskId)
@@ -443,7 +466,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
 
     async function handleDeleteTask(taskId: string) {
-        if ((accessLevel ?? 0) < 2) return
+        if ((accessLevel ?? 0) < 3) return
         try {
             const supabase = getSupabase()
             const { error } = await supabase.from("project_tasks").delete().eq("id", taskId)
@@ -537,14 +560,39 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
 
     async function handleDeleteAsset(assetId: string) {
+        if ((accessLevel ?? 0) < 3) return
         if (!confirm("정말 이 에셋을 삭제하시겠습니까?")) return
         try {
             const supabase = getSupabase()
-            const { error } = await supabase.from("project_assets").delete().eq("id", assetId)
-            if (error) throw error
+
+            // 1. Fetch asset info to check for storage file
+            const { data: asset, error: fetchError } = await supabase
+                .from("project_assets")
+                .select("url")
+                .eq("id", assetId)
+                .single()
+
+            if (fetchError) throw fetchError
+
+            // 2. If it's a storage file, delete it
+            if (asset.url.includes('project-assets')) {
+                const urlParts = asset.url.split('/project-assets/')
+                if (urlParts.length > 1) {
+                    const filePath = decodeURIComponent(urlParts[1])
+                    const { error: storageError } = await supabase.storage
+                        .from('project-assets')
+                        .remove([filePath])
+                    if (storageError) console.error("Storage deletion error:", storageError)
+                }
+            }
+
+            // 3. Delete from DB
+            const { error: dbError } = await supabase.from("project_assets").delete().eq("id", assetId)
+            if (dbError) throw dbError
             fetchAssets()
         } catch (err) {
             console.error("Error deleting asset:", err)
+            alert("에셋 삭제 중 오류가 발생했습니다.")
         }
     }
 
@@ -747,7 +795,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             )}
                         </div>
                     </div>
-                    {(accessLevel ?? 0) >= 2 && (
+                    {(accessLevel ?? 0) >= 3 && (
                         <button onClick={() => handleDeleteTask(task.id)} className="opacity-0 group-hover:opacity-100 p-1 text-neutral-600 hover:text-red-400 transition-all">
                             <Trash2 className="w-3 h-3" />
                         </button>
@@ -800,7 +848,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     <ExternalLink className="w-4 h-4" />
                                 </a>
                             )}
-                            {(accessLevel ?? 0) >= 2 && (
+                            {(accessLevel ?? 0) >= 4 && (
                                 <button onClick={handleDelete} className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
@@ -1354,7 +1402,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     원본 열기 / 다운로드
                                 </a>
 
-                                {(accessLevel ?? 0) >= 1 && (
+                                {(accessLevel ?? 0) >= 3 && (
                                     <button
                                         onClick={() => {
                                             if (confirm("정말 이 에셋을 삭제하시겠습니까?")) {

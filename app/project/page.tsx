@@ -5,25 +5,7 @@ import { AuthForm } from "@/components/auth-form"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
-import {
-  Folder,
-  ExternalLink,
-  Calendar,
-  Tag,
-  Plus,
-  Users,
-  Clock,
-  LayoutGrid,
-  CalendarDays,
-  Columns3,
-  ChevronRight,
-  ClipboardList,
-  Lock,
-  Globe,
-  X,
-  Check,
-  UsersRound,
-} from "lucide-react"
+import { Folder, Plus, Search, X, LayoutGrid, Calendar as CalendarIcon, Kanban, ChevronRight, Users, Clock, AlertCircle, FileText, CheckCircle2, MoreHorizontal, FolderIcon, ExternalLink, Tag, CalendarDays, Columns3, ClipboardList, Lock as LockIcon, Globe, Check, UsersRound } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -80,6 +62,7 @@ export default function ProjectPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [showAddForm, setShowAddForm] = useState(false)
   const [calendarDate, setCalendarDate] = useState(new Date())
+  const [searchTerm, setSearchTerm] = useState("")
 
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [allTeams, setAllTeams] = useState<any[]>([])
@@ -168,7 +151,7 @@ export default function ProjectPage() {
   }
 
   async function handleAddProject() {
-    if ((accessLevel ?? 0) < 1) return
+    if ((accessLevel ?? 0) < 3) return
     if (!newProject.name.trim()) return
 
     try {
@@ -285,7 +268,7 @@ export default function ProjectPage() {
                 {project.is_public ? (
                   <div className="flex items-center gap-1 text-[9px] text-green-400 opacity-70"><Globe className="w-2.5 h-2.5" /><span>전체 공개</span></div>
                 ) : (
-                  <div className="flex items-center gap-1 text-[9px] text-yellow-400 opacity-70"><Lock className="w-2.5 h-2.5" /><span>멤버 전용</span></div>
+                  <div className="flex items-center gap-1 text-[9px] text-yellow-400 opacity-70"><LockIcon className="w-2.5 h-2.5" /><span>멤버 전용</span></div>
                 )}
               </div>
             </div>
@@ -318,19 +301,37 @@ export default function ProjectPage() {
   if (!user) return <AuthForm />
 
   return (
-    <div className="min-h-[calc(100vh-65px)] bg-black text-white p-4 sm:p-6 md:p-12">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800"><Folder className="w-6 h-6 text-neutral-400" /></div>
-            <div>
-              <h1 className="text-2xl font-light tracking-tight">프로젝트</h1>
-              <p className="text-sm text-neutral-500 mt-0.5">{projects.length}개의 프로젝트</p>
-            </div>
+    <div className="min-h-[calc(100vh-65px)] bg-black text-white p-6 md:p-12">
+      <div className="max-w-6xl mx-auto">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold font-suit leading-tight tracking-tighter mb-4">
+              프로젝트
+            </h1>
+            <p className="text-sm text-muted-foreground font-medium max-w-md leading-relaxed">
+              활발히 진행 중인 워크스페이스를 관리합니다.
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            {(accessLevel ?? 0) >= 1 && (
-              <button onClick={() => setShowAddForm(true)} className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"><Plus className="w-4 h-4" />추가</button>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative group w-full sm:w-auto">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-foreground transition-colors" />
+              <input
+                type="text"
+                placeholder="프로젝트 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full sm:w-64 pl-11 pr-4 py-3 bg-secondary border border-border rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground"
+              />
+            </div>
+            {(accessLevel ?? 0) >= 3 && (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="w-full sm:w-auto px-6 py-3 bg-foreground text-background font-bold rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-white/5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>추가</span>
+              </button>
             )}
           </div>
         </div>
@@ -466,7 +467,7 @@ export default function ProjectPage() {
                           className={`flex items-center justify-between px-4 py-2.5 w-full h-[42px] rounded-xl border transition-all ${newProject.is_public ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-yellow-500/10 border-yellow-500/30 text-yellow-500"}`}
                         >
                           <span className="text-[9px] font-bold uppercase tracking-wider">{newProject.is_public ? "전체 공개" : "비공개 (멤버 전용)"}</span>
-                          {newProject.is_public ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                          {newProject.is_public ? <Globe className="w-3.5 h-3.5" /> : <LockIcon className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </div>
@@ -546,7 +547,12 @@ export default function ProjectPage() {
           <div className="py-20 text-center text-neutral-500"><Folder className="w-12 h-12 mx-auto mb-4 opacity-30" /><p>프로젝트가 없습니다.</p></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((project, index) => <ProjectCard key={project.id} project={project} index={index} />)}
+            {projects
+              .filter(p =>
+                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map((project, index) => <ProjectCard key={project.id} project={project} index={index} />)}
           </div>
         )}
       </div>

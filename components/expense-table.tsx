@@ -32,7 +32,7 @@ import {
 
 type FilterType = "all" | "income" | "expense"
 
-export function ExpenseTable() {
+export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
   const router = useRouter()
   const { user, signOut, accessLevel } = useAuth()
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -80,7 +80,7 @@ export function ExpenseTable() {
 
   async function handleAdd() {
     // access_level 1 이상만 추가 가능
-    if ((accessLevel ?? 0) < 1) return
+    if ((accessLevel ?? 0) < 3) return
 
     if (!newExpense.date || !newExpense.item || !newExpense.amount) return
 
@@ -113,7 +113,7 @@ export function ExpenseTable() {
 
   async function handleUpdate(id: string) {
     // access_level 1 이상만 수정 가능
-    if ((accessLevel ?? 0) < 1) return
+    if ((accessLevel ?? 0) < 4) return
 
     if (!editForm.date || !editForm.item || !editForm.amount) return
 
@@ -140,8 +140,8 @@ export function ExpenseTable() {
   }
 
   async function handleDelete(id: string) {
-    // access_level 2 이상만 삭제 가능
-    if ((accessLevel ?? 0) < 2) return
+    // access_level 4 이상만 삭제 가능
+    if ((accessLevel ?? 0) < 4) return
 
     if (!confirm("정말 삭제하시겠습니까?")) return
     try {
@@ -157,7 +157,7 @@ export function ExpenseTable() {
 
   function startEdit(expense: Expense) {
     // access_level 1 이상만 인라인 수정 가능
-    if ((accessLevel ?? 0) < 1) return
+    if ((accessLevel ?? 0) < 3) return
 
     setEditingId(expense.id)
     setEditForm({
@@ -236,41 +236,62 @@ export function ExpenseTable() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 sm:p-6 md:p-12">
+    <div className={`bg-black text-white ${!hideHeader && 'p-4 sm:p-6 md:p-12'}`}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800">
-              <CreditCard className="w-6 h-6 text-neutral-400" />
-            </div>
+        {!hideHeader && (
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
-              <h1 className="text-2xl font-light tracking-tight">지출 가계부</h1>
-              <p className="text-sm text-neutral-500 mt-0.5">{expenses.length}개의 내역</p>
+              <h1 className="text-4xl md:text-5xl font-bold font-suit leading-tight tracking-tighter mb-4">
+                지출 관리
+              </h1>
+              <p className="text-sm text-muted-foreground font-medium max-w-md leading-relaxed">
+                모든 지출 내역을 투명하게 관리하고 모니터링하세요.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportToExcel}
+                className="flex items-center gap-2 px-4 py-3 bg-neutral-900 text-white text-xs font-bold rounded-xl border border-neutral-800 hover:bg-neutral-800 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>데이터 내보내기</span>
+              </button>
+              {(accessLevel ?? 0) >= 3 && (
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  className="w-full sm:w-auto px-6 py-3 bg-foreground text-background font-bold rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-white/5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>내역 추가</span>
+                </button>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+        )}
+
+        {hideHeader && (
+          <div className="flex justify-end gap-2 mb-8">
             <button
               onClick={exportToExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-md border border-neutral-800 hover:bg-neutral-800 transition-colors"
+              className="flex items-center gap-2 px-4 py-3 bg-neutral-900 text-white text-xs font-bold rounded-xl border border-neutral-800 hover:bg-neutral-800 transition-colors"
             >
               <Download className="w-4 h-4" />
-              내보내기
+              <span>데이터 내보내기</span>
             </button>
-            {/* access_level 1 이상만 추가 버튼 표시 */}
-            {(accessLevel ?? 0) >= 1 && (
+            {(accessLevel ?? 0) >= 3 && (
               <button
                 onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
+                className="w-full sm:w-auto px-6 py-3 bg-foreground text-background font-bold rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-white/5"
               >
                 <Plus className="w-4 h-4" />
-                내역 추가
+                <span>내역 추가</span>
               </button>
             )}
           </div>
-        </div>
+        )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 fill-mode-backwards">
           <div className="p-3 sm:p-4 bg-neutral-950 border border-neutral-800 rounded-lg">
             <div className="flex items-center gap-2 text-green-500 mb-0.5 sm:mb-1">
               <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -647,7 +668,7 @@ export function ExpenseTable() {
                                 <Eye className="w-4 h-4" />
                               </button>
                               {/* access_level 1 이상: 인라인 수정 버튼 */}
-                              {(accessLevel ?? 0) >= 1 && (
+                              {(accessLevel ?? 0) >= 4 && (
                                 <button
                                   onClick={() => startEdit(expense)}
                                   className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-all"
@@ -656,8 +677,8 @@ export function ExpenseTable() {
                                   <Pencil className="w-4 h-4" />
                                 </button>
                               )}
-                              {/* access_level 2 이상: 삭제 버튼 */}
-                              {(accessLevel ?? 0) >= 2 && (
+                              {/* access_level 3 이상: 삭제 버튼 */}
+                              {(accessLevel ?? 0) >= 4 && (
                                 <button
                                   onClick={() => handleDelete(expense.id)}
                                   className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"

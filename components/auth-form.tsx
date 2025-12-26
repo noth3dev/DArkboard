@@ -36,85 +36,95 @@ export function AuthForm() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-8">
-          <img src="/Darkboard.svg" alt="Darkboard" className="w-auto h-6 sm:h-7" />
-        </h1>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 pb-24">
+      <div className="w-full max-w-sm animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <div className="mb-12 flex justify-center">
+          <img src="/homewArk.svg" alt="homewArk" className="w-auto h-8" />
+        </div>
 
-        <div className="bg-neutral-950 border border-neutral-800 rounded-lg p-6">
-          <div className="flex mb-6">
+        <div className="glass border border-border/50 rounded-[32px] p-10 shadow-2xl">
+          <div className="flex mb-10 bg-white/5 p-1.5 rounded-2xl">
             <button
               type="button"
               onClick={() => setIsLogin(true)}
-              className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${isLogin ? "border-white text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
+              className={`flex-1 py-2 text-xs font-bold font-suit rounded-xl transition-all ${isLogin ? "bg-foreground text-background shadow-lg" : "text-muted-foreground hover:text-foreground"
                 }`}
             >
-              로그인
+              Sign In
             </button>
             <button
               type="button"
               onClick={() => setIsLogin(false)}
-              className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${!isLogin ? "border-white text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
+              className={`flex-1 py-2 text-xs font-bold font-suit rounded-xl transition-all ${!isLogin ? "bg-foreground text-background shadow-lg" : "text-muted-foreground hover:text-foreground"
                 }`}
             >
-              회원가입
+              Register
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name selection logic removed */}
-
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="이메일"
-                required
-                className="w-full pl-10 pr-3 py-2.5 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 bg-secondary border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
             </div>
 
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="비밀번호"
-                required
-                minLength={6}
-                className="w-full pl-10 pr-3 py-2.5 bg-black border border-neutral-800 rounded-md text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-              />
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  required
+                  minLength={6}
+                  className="w-full pl-12 pr-4 py-3.5 bg-secondary border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
             </div>
 
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            {success && <p className="text-green-500 text-sm">{success}</p>}
+            <div className="min-h-[20px] pt-1">
+              {error && <p className="text-red-400 text-[10px] font-bold flex items-center gap-2 animate-in slide-in-from-left-2">{error}</p>}
+              {success && <p className="text-emerald-400 text-[10px] font-bold flex items-center gap-2 animate-in slide-in-from-left-2">{success}</p>}
+            </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors disabled:opacity-50"
+              className="w-full h-14 flex items-center justify-center gap-3 bg-foreground text-background text-sm font-bold rounded-2xl hover:opacity-90 transition-all shadow-xl active:scale-95 disabled:opacity-50 mt-6"
             >
               {loading ? (
-                "처리 중..."
+                "Processing..."
               ) : isLogin ? (
                 <>
                   <LogIn className="w-4 h-4" />
-                  로그인
+                  <span>Initiate Login</span>
                 </>
               ) : (
                 <>
                   <UserPlus className="w-4 h-4" />
-                  회원가입
+                  <span>Create Account</span>
                 </>
               )}
             </button>
           </form>
         </div>
       </div>
+
+      <style jsx global>{`
+        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); }
+      `}</style>
     </div>
   )
 }

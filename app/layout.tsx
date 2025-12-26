@@ -5,7 +5,7 @@ import { AuthProvider } from "@/lib/auth-context"
 import { Header } from "@/components/header"
 import "./globals.css"
 export const metadata: Metadata = {
-  title: "Darkboard",
+  title: "homewArk",
   icons: {
     icon: [
       {
@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`font-sans antialiased min-h-screen bg-black text-white`}>
+      <body className={`font-sans antialiased min-h-screen text-white`}>
         <AuthProvider>
           <Header />
           {children}

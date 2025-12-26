@@ -12,11 +12,17 @@ import {
   Shield,
   Settings,
   Bell,
-  Menu,
-  X,
+  BookOpen,
+  LayoutDashboard,
   Calendar,
   User,
   Trophy,
+  ClipboardCheck,
+  MonitorPlay,
+  GraduationCap,
+  Menu,
+  X,
+  RefreshCw,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -27,11 +33,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NotificationCenter } from "./notification-center"
+import { motion, AnimatePresence } from "framer-motion"
 
 export function Header() {
   const { user, signOut, accessLevel, profileName } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [system, setSystem] = useState<'edu' | 'pro'>('edu')
   const router = useRouter()
+
+  // 시스템 초기 설정 (로컬 스토리지)
+  useEffect(() => {
+    const savedSystem = localStorage.getItem('system_mode') as 'edu' | 'pro'
+    if (savedSystem && (accessLevel ?? 0) >= 3) {
+      setSystem(savedSystem)
+    }
+  }, [accessLevel])
+
+  const handleSystemChange = (mode: 'edu' | 'pro') => {
+    if (system === mode) return
+    setSystem(mode)
+    localStorage.setItem('system_mode', mode)
+    setIsMenuOpen(false)
+    router.push('/')
+  }
+
 
   // 메뉴 열릴 때 스크롤 방지
   useEffect(() => {
@@ -49,11 +74,10 @@ export function Header() {
 
   const canAccessInnerPages = (accessLevel ?? 0) > 0
 
-  const romanLevels = ["I", "II", "III"]
-  const safeLevel = Math.min(Math.max(accessLevel ?? 0, 0), 2)
-  const roman = romanLevels[safeLevel]
+  const romanLevels = ["I", "II", "III", "IV"]
+  const safeLevel = Math.min(Math.max(accessLevel ?? 1, 1), 4)
+  const roman = romanLevels[safeLevel - 1]
 
-  // 레벨별 색상 (0: 파랑, 1: 에메랄드, 2: 보라)
   const levelStyles = [
     {
       glow: "bg-sky-500/40",
@@ -82,110 +106,153 @@ export function Header() {
       value: "text-violet-100",
       dot: "bg-violet-400",
     },
+    {
+      glow: "bg-orange-500/40",
+      border: "border-orange-400",
+      bg: "bg-orange-500/8",
+      icon: "text-orange-300",
+      label: "text-orange-300/80",
+      value: "text-orange-100",
+      dot: "bg-orange-400",
+    },
   ] as const
 
-  const style = levelStyles[safeLevel]
+  const style = levelStyles[safeLevel - 1]
 
   const baseDisplayName = profileName || user.email || "me"
   const nameSlug = encodeURIComponent(baseDisplayName)
 
+  const eduNav = [
+    { href: "/homework", label: "숙제", icon: ClipboardCheck, minLevel: 2, title: "나의 숙제" },
+    { href: "/calendar", label: "일정", icon: Calendar, minLevel: 2, title: "일정" },
+    { href: "/lecture", label: "강의", icon: MonitorPlay, minLevel: 2, title: "강의" },
+    { href: "/group", label: "그룹", icon: Users, minLevel: 2, title: "그룹 관리" },
+    { href: "/legacy", label: "레거시", icon: Trophy, minLevel: 1, title: "레거시" },
+  ]
+
+  const proNav = [
+    { href: "/expense", label: "지출", icon: CreditCard, minLevel: 3, title: "지출 관리" },
+    { href: "/project", label: "프로젝트", icon: Folder, minLevel: 3, title: "프로젝트" },
+    { href: "/team", label: "팀", icon: Users, minLevel: 3, title: "팀 관리" },
+    { href: "/calendar", label: "일정", icon: Calendar, minLevel: 3, title: "일정" },
+  ]
+
+  const currentNav = system === 'edu' ? eduNav : proNav
+
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-neutral-800 bg-black/50 backdrop-blur-xl">
-      <div className="flex items-center gap-2 sm:gap-6">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity shrink-0">
-          <img src="/Darkboard.svg" alt="Darkboard" className="w-auto h-5 sm:h-6" />
-        </Link>
+    <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 border-b border-border bg-background/60 backdrop-blur-xl">
+      <div className="flex items-center gap-8">
+        <div className="flex items-center gap-1 system-select-container">
+          <div className="relative h-5 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]" style={{ width: system === 'edu' ? '120px' : '100px' }}>
+            <Link href="/" className="absolute inset-0">
+              <img
+                src="/teamwarkedu.svg"
+                alt="Logo"
+                className={`absolute left-0 h-5 w-auto transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${system === 'edu'
+                  ? 'opacity-100 translate-y-0 scale-100 blur-0'
+                  : 'opacity-0 -translate-y-8 scale-95 blur-md pointer-events-none'
+                  }`}
+              />
+              <img
+                src="/teamwark.svg"
+                alt="Logo"
+                className={`absolute left-0 h-5 w-auto transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${system === 'pro'
+                  ? 'opacity-100 translate-y-0 scale-100 blur-0'
+                  : 'opacity-0 translate-y-8 scale-95 blur-md pointer-events-none'
+                  }`}
+              />
+            </Link>
+          </div>
+
+          {(accessLevel ?? 0) >= 3 && (
+            <button
+              onClick={() => handleSystemChange(system === 'edu' ? 'pro' : 'edu')}
+              className="flex items-center justify-center w-6 h-6 hover:bg-white/10 rounded-full transition-all text-muted-foreground hover:text-foreground cursor-pointer outline-none active:scale-90 group/toggle"
+              title={`Switch to ${system === 'edu' ? 'Teamwark PRO' : 'Teamwark EDU'}`}
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 transition-all duration-500 ease-in-out group-hover/toggle:rotate-180 ${system === 'edu' ? 'text-[#00D7D3]' : 'text-muted-foreground/40'}`}
+              />
+            </button>
+          )}
+        </div>
 
         {/* 데스크톱 네비게이션 */}
         {canAccessInnerPages && (
-          <nav className="hidden md:flex items-center gap-6 border-l border-neutral-800 pl-6 h-6">
-            <Link
-              href="/expense"
-              className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              title="지출 가계부"
-            >
-              <CreditCard className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/team"
-              className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              title="팀 관리"
-            >
-              <Users className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/project"
-              className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              title="프로젝트 관리"
-            >
-              <Folder className="w-4 h-4" />
-            </Link>
-
-            {(accessLevel ?? 0) >= 1 && (
-              <Link
-                href="/calendar"
-                className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                title="일정 관리"
+          <nav className="hidden md:flex items-center gap-1 border-l border-border pl-6 overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={system}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="flex items-center gap-1"
               >
-                <Calendar className="w-4 h-4" />
-              </Link>
-            )}
-            <div className="w-[1px] h-3 bg-neutral-800 mx-1" />
-            <Link
-              href="/legacy"
-              className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              title="명예의 전당"
-            >
-              <Trophy className="w-4 h-4" />
-            </Link>
-            {(accessLevel ?? 0) >= 2 && (
-              <div className="w-[1px] h-3 bg-neutral-800 mx-1" />
-            )}
-            {(accessLevel ?? 0) >= 2 && (
-              <Link
-                href="/management"
-                className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-                title="관리자 설정"
-              >
-                <Settings className="w-4 h-4" />
-              </Link>
-            )}
+                {currentNav.map((item, index) => {
+                  if ((accessLevel ?? 0) < item.minLevel) return null
+                  const Icon = item.icon
+                  return (
+                    <motion.div
+                      key={item.href}
+                      variants={{
+                        initial: { opacity: 0, x: 20 },
+                        animate: { opacity: 1, x: 0 },
+                        exit: { opacity: 0, x: -20 },
+                      }}
+                      transition={{
+                        duration: 0.3,
+                        delay: index * 0.05,
+                        ease: [0.23, 1, 0.32, 1],
+                      }}
+                    >
+                      <Link
+                        href={item.href}
+                        className="px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2"
+                        title={item.title}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </Link>
+                    </motion.div>
+                  )
+                })}
+              </motion.div>
+            </AnimatePresence>
           </nav>
         )}
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-3">
         {/* 유저 배지 (드롭다운 메뉴) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 bg-neutral-900/50 border border-neutral-800 rounded-full hover:bg-neutral-800 transition-all outline-none">
-              <div className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
-              <span className="text-[10px] sm:text-xs text-neutral-400 font-medium truncate max-w-[60px] sm:max-w-[100px]">{baseDisplayName}</span>
-              <div className="w-px h-3 bg-neutral-800 hidden sm:block" />
-              <span className="text-[8px] sm:text-[9px] font-black text-neutral-600 uppercase tracking-wider hidden sm:block">{roman}</span>
+            <button className="flex items-center gap-3 px-3 py-1.5 bg-secondary hover:bg-accent border border-border rounded-full transition-all outline-none cursor-pointer">
+              <div className={`w-1.5 h-1.5 rounded-full ${style.dot} shadow-[0_0_8px_rgba(255,255,255,0.2)]`} />
+              <span className="text-xs text-foreground font-medium truncate max-w-[100px]">{baseDisplayName}</span>
+              <div className="w-px h-3 bg-border" />
+              <span className="text-[10px] font-bold text-muted-foreground font-suit tracking-tighter">{roman}</span>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>내 정보</DropdownMenuLabel>
-            <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-default focus:bg-transparent">
-              <span className="text-xs font-bold text-white">{baseDisplayName}</span>
-              <span className="text-[10px] text-neutral-500 font-medium uppercase tracking-widest">{roman} Access</span>
+          <DropdownMenuContent align="end" className="w-56 bg-card border-border backdrop-blur-xl">
+            <DropdownMenuLabel className="font-suit text-xs text-muted-foreground">Account</DropdownMenuLabel>
+            <DropdownMenuItem className="flex flex-col items-start gap-0.5 cursor-default focus:bg-transparent px-2 py-2">
+              <span className="text-sm font-bold text-foreground font-suit">{baseDisplayName}</span>
+              <span className="text-[10px] text-muted-foreground font-medium tracking-tight">{roman} Access Level</span>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push(`/${nameSlug}`)}>
+            <DropdownMenuSeparator className="bg-border" />
+            <DropdownMenuItem onClick={() => router.push(`/${nameSlug}`)} className="cursor-pointer">
               <User className="mr-2 h-4 w-4" />
-              <span>비즈니스 카드</span>
+              <span className="text-sm">Profile Card</span>
             </DropdownMenuItem>
-            {(accessLevel ?? 0) >= 2 && (
-              <DropdownMenuItem onClick={() => router.push("/management")}>
+            {(accessLevel ?? 0) >= 4 && (
+              <DropdownMenuItem onClick={() => router.push("/management")} className="cursor-pointer">
                 <Settings className="mr-2 h-4 w-4" />
-                <span>관리자 설정</span>
+                <span className="text-sm">Admin Settings</span>
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut()} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
+            <DropdownMenuSeparator className="bg-border" />
+            <DropdownMenuItem onClick={() => signOut()} className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />
-              <span>로그아웃</span>
+              <span className="text-sm">Sign Out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -194,7 +261,7 @@ export function Header() {
 
         {/* 모바일 햄버거 메뉴 버튼 */}
         <button
-          className="p-2 -mr-2 text-neutral-400 hover:text-white md:hidden transition-colors"
+          className="p-2 -mr-2 text-muted-foreground hover:text-foreground md:hidden transition-colors cursor-pointer"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           <div className="relative w-4 h-4 overflow-visible">
@@ -216,73 +283,23 @@ export function Header() {
 
       {/* 모바일 메뉴 오버레이 */}
       {isMenuOpen && (
-        <nav className="absolute top-full left-0 w-full bg-black/95 backdrop-blur-2xl border-b border-neutral-800 md:hidden animate-in slide-in-from-top-4 duration-300 shadow-2xl overflow-hidden z-[40]">
-          <div className="flex flex-col p-2">
-            <Link
-              href="/expense"
-              className="flex items-center gap-3 px-6 py-4 text-neutral-400 hover:text-white active:bg-neutral-900 transition-colors border-b border-neutral-900/50"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <CreditCard className="w-4 h-4" />
-              <span className="text-sm font-medium">지출 가계부</span>
-            </Link>
-            <Link
-              href="/team"
-              className="flex items-center gap-3 px-6 py-4 text-neutral-400 hover:text-white active:bg-neutral-900 transition-colors border-b border-neutral-900/50"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Users className="w-4 h-4" />
-              <span className="text-sm font-medium">팀 관리</span>
-            </Link>
-            <Link
-              href="/project"
-              className="flex items-center gap-3 px-6 py-4 text-neutral-400 hover:text-white active:bg-neutral-900 transition-colors border-b border-neutral-900/50"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Folder className="w-4 h-4" />
-              <span className="text-sm font-medium">프로젝트 관리</span>
-            </Link>
-            {(accessLevel ?? 0) >= 1 && (
-              <Link
-                href="/calendar"
-                className="flex items-center gap-3 px-6 py-4 text-neutral-400 hover:text-white active:bg-neutral-900 transition-colors border-b border-neutral-900/50"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <Calendar className="w-4 h-4" />
-                <span className="text-sm font-medium">일정 관리</span>
-              </Link>
-            )}
-            <div className="px-6 pt-4 pb-2">
-              <div className="h-px bg-neutral-900 w-full" />
-              <p className="text-[9px] text-neutral-600 font-black uppercase tracking-[0.2em] mt-3">Legacy & Records</p>
-            </div>
-            <Link
-              href="/legacy"
-              className="flex items-center gap-3 px-6 py-4 text-neutral-400 hover:text-white active:bg-neutral-900 transition-colors border-b border-neutral-900/50"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Trophy className="w-4 h-4" />
-              <span className="text-sm font-medium">명예의 전당</span>
-            </Link>
-
-            {(accessLevel ?? 0) >= 2 && (
-              <div className="px-6 pt-4 pb-2">
-                <div className="h-px bg-neutral-900 w-full" />
-                <p className="text-[9px] text-neutral-600 font-black uppercase tracking-[0.2em] mt-3">Administration</p>
-              </div>
-            )}
-            {(accessLevel ?? 0) >= 2 && (
-              <Link
-                href="/management"
-                className="flex items-center gap-3 px-6 py-4 text-neutral-400 hover:text-white active:bg-neutral-900 transition-colors border-b border-neutral-900/50"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <Settings className="w-4 h-4" />
-                <span className="text-sm font-medium">관리자 설정</span>
-              </Link>
-            )}
-
-
+        <nav className="absolute top-full left-0 w-full bg-background/95 backdrop-blur-2xl border-b border-border md:hidden animate-in slide-in-from-top-4 duration-300 shadow-2xl overflow-hidden z-[40]">
+          <div className="flex flex-col p-2 space-y-1">
+            {currentNav.map((item) => {
+              if ((accessLevel ?? 0) < item.minLevel) return null
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-3 px-6 py-4 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-xl transition-all"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm font-medium font-suit">{item.label}</span>
+                </Link>
+              )
+            })}
           </div>
         </nav>
       )}

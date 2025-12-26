@@ -8,7 +8,7 @@ type AuthContextType = {
   user: User | null
   /** 인증 + 권한 정보 로딩 여부 */
   loading: boolean
-  /** public.users.access_level (0: 대시보드만, 1: 작성/수정, 2: 삭제 포함 전체 권한) */
+  /** public.users.access_level (0: 대시보드만, 1: 작성/수정, 2: Level III, 3: Level IV - 삭제 포함 전체 권한) */
   accessLevel: number | null
   /** public.users.name (표시용 이름) */
   profileName: string | null

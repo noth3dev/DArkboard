@@ -145,7 +145,7 @@ export default function TeamPage() {
   }
 
   async function handleDeleteTeam(teamId: string) {
-    if ((accessLevel ?? 0) < 2) return
+    if ((accessLevel ?? 0) < 3) return
     if (!confirm("정말 이 팀을 삭제하시겠습니까?")) return
 
     try {
@@ -182,7 +182,7 @@ export default function TeamPage() {
   }
 
   async function handleRemoveMemberFromTeam(teamId: string, userUuid: string) {
-    if ((accessLevel ?? 0) < 1) return
+    if ((accessLevel ?? 0) < 3) return
 
     try {
       const supabase = getSupabase()
@@ -229,32 +229,29 @@ export default function TeamPage() {
     )
   }
 
-  const romanLevels = ["I", "II", "III"]
+  const romanLevels = ["I", "II", "III", "IV"]
 
   return (
     <div className="min-h-[calc(100vh-65px)] bg-black text-white p-6 md:p-12">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800">
-              <Users className="w-6 h-6 text-neutral-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-light tracking-tight">팀</h1>
-              <p className="text-sm text-neutral-500 mt-0.5">
-                {members.length}명의 멤버 · {teams.length}개의 팀
-              </p>
-            </div>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold font-suit leading-tight tracking-tighter mb-4">
+              팀 관리
+            </h1>
+            <p className="text-sm text-muted-foreground font-medium max-w-md leading-relaxed">
+              전체 멤버 구성원과 각 팀의 역할을 한눈에 확인하세요.
+            </p>
           </div>
 
           {(accessLevel ?? 0) >= 1 && (
             <button
               onClick={() => setShowAddTeam(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-md hover:bg-neutral-200 transition-colors"
+              className="w-full sm:w-auto px-6 py-3 bg-foreground text-background font-bold rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-white/5"
             >
               <Plus className="w-4 h-4" />
-              팀 만들기
+              <span>팀 만들기</span>
             </button>
           )}
         </div>
@@ -511,7 +508,7 @@ export default function TeamPage() {
                                     추가
                                   </button>
                                 )}
-                                {(accessLevel ?? 0) >= 2 && (
+                                {(accessLevel ?? 0) >= 3 && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation()
@@ -581,7 +578,7 @@ export default function TeamPage() {
                                         )}
                                       </div>
                                     </div>
-                                    {(accessLevel ?? 0) >= 1 && (
+                                    {(accessLevel ?? 0) >= 3 && (
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation()
@@ -623,7 +620,7 @@ export default function TeamPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {members.map((member, index) => {
-                    const safeLevel = Math.min(Math.max(member.access_level ?? 0, 0), 2)
+                    const safeLevel = Math.min(Math.max(member.access_level ?? 0, 0), 3)
                     const roman = romanLevels[safeLevel]
 
                     return (

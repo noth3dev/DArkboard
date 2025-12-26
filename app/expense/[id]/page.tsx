@@ -80,8 +80,8 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function handleDelete() {
-    // access_level 2 이상만 삭제 가능
-    if ((accessLevel ?? 0) < 2) return
+    // access_level 3 이상만 삭제 가능
+    if ((accessLevel ?? 0) < 3) return
 
     if (!confirm("정말 삭제하시겠습니까?")) return
     try {
@@ -187,8 +187,8 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                     수정
                   </button>
                 )}
-                {/* access_level 2 이상: 삭제 가능 */}
-                {(accessLevel ?? 0) >= 2 && (
+                {/* access_level 3 이상: 삭제 가능 */}
+                {(accessLevel ?? 0) >= 3 && (
                   <button
                     onClick={handleDelete}
                     className="flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-500 text-sm font-medium rounded-md hover:bg-red-600/30 transition-colors"

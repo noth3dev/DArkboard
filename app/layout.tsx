@@ -5,7 +5,7 @@ import { AuthProvider } from "@/lib/auth-context"
 import { Header } from "@/components/header"
 import "./globals.css"
 export const metadata: Metadata = {
-  title: "homewArk",
+  title: "teamwArk",
   icons: {
     icon: [
       {

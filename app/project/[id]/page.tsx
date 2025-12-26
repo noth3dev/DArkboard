@@ -324,9 +324,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 .eq("project_id", id)
 
             if (assets && assets.length > 0) {
-                const storagePaths = assets
-                    .filter(a => a.url.includes('project-assets'))
-                    .map(a => {
+                const storagePaths = (assets as { url: string }[])
+                    .filter((a: { url: string }) => a.url.includes('project-assets'))
+                    .map((a: { url: string }) => {
                         const parts = a.url.split('/project-assets/')
                         return parts.length > 1 ? decodeURIComponent(parts[1]) : null
                     })

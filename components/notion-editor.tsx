@@ -390,11 +390,11 @@ function CollaborativeEditor({
                     value={title}
                     onChange={handleTitleChange}
                     placeholder="제목 없는 노트"
-                    className="w-full bg-transparent text-5xl font-black outline-none placeholder:text-neutral-900 tracking-tighter"
+                    className="w-full bg-transparent text-3xl lg:text-5xl font-black outline-none placeholder:text-neutral-900 tracking-tighter"
                 />
             </div>
 
-            <div className="-mx-12">
+            <div className="-mx-4 lg:-mx-12">
                 <BlockNoteView
                     editor={editor}
                     theme="dark"
@@ -504,7 +504,7 @@ export default function NotionEditor({
     }
 
     return (
-        <div className="min-h-full bg-black text-white p-8 lg:p-16 max-w-4xl mx-auto space-y-8">
+        <div className="min-h-full bg-black text-white p-6 lg:p-16 max-w-4xl mx-auto space-y-8">
             <CollaborativeEditor
                 noteId={noteId}
                 initialContent={initialContent}
@@ -520,7 +520,8 @@ export default function NotionEditor({
 
             <style jsx global>{`
                 .bn-container[data-theme="dark"] { background-color: transparent !important; }
-                .bn-editor { padding-inline: 48px !important; background-color: transparent !important; min-height: 400px; }
+                .bn-editor { padding-inline: 24px !important; background-color: transparent !important; min-height: 400px; }
+                @media (min-width: 1024px) { .bn-editor { padding-inline: 48px !important; } }
                 .bn-block-content { color: #d4d4d4 !important; background-color: transparent !important; }
                 .bn-block-content[data-active] { color: #ffffff !important; }
                 ::selection { background: rgba(255, 255, 255, 0.1) !important; }

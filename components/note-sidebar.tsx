@@ -78,7 +78,7 @@ type Workspace = {
 }
 
 // Icon mapping
-const ICON_MAP: Record<string, LucideIcon> = {
+export const ICON_MAP: Record<string, LucideIcon> = {
     "folder": Folder,
     "folder-open": FolderOpen,
     "folder-heart": FolderHeart,
@@ -131,7 +131,7 @@ function getUserColor(userId: string): string {
 }
 
 
-function getIconComponent(iconName: string): LucideIcon {
+export function getIconComponent(iconName: string): LucideIcon {
     return ICON_MAP[iconName] || Folder
 }
 
@@ -146,7 +146,7 @@ type NoteTreeItemProps = {
     onCreateSubPage: (parentId: string, e: React.MouseEvent) => void
 }
 
-const NoteItem = ({
+export const NoteItem = ({
     note,
     level,
     allNotes,
@@ -256,9 +256,11 @@ const NoteItem = ({
 type NoteSidebarProps = {
     isCollapsed: boolean
     onToggle: () => void
+    workspaceId?: string
+    onWorkspaceChange?: (workspaceId: string) => void
 }
 
-export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
+export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceId, onWorkspaceChange }: NoteSidebarProps) {
     const { user, profileName } = useAuth()
     const router = useRouter()
     const params = useParams()
@@ -279,6 +281,22 @@ export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
     const channelRef = useRef<any>(null)
     const presenceChannelRef = useRef<any>(null)
 
+    // Sync with propWorkspaceId
+    useEffect(() => {
+        if (propWorkspaceId && workspaces.length > 0) {
+            const ws = workspaces.find(w => w.id === propWorkspaceId)
+            if (ws && currentWorkspace?.id !== ws.id) {
+                setCurrentWorkspace(ws)
+            }
+        }
+    }, [propWorkspaceId, workspaces])
+
+    // Notify parent of workspace changes
+    const selectWorkspace = (ws: Workspace) => {
+        setCurrentWorkspace(ws)
+        onWorkspaceChange?.(ws.id)
+    }
+
 
     const fetchWorkspaces = useCallback(async () => {
         if (!user) return
@@ -293,14 +311,17 @@ export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
 
             if (data && data.length > 0) {
                 setWorkspaces(data)
-                // Set default workspace or first one
+
+                // Determine the target workspace first
                 const defaultWs = data.find((w: Workspace) => w.is_default) || data[0]
-                // Only set current workspace if not already set, or if the current one is not in the new list
-                setCurrentWorkspace(prev => {
-                    if (!prev) return defaultWs
-                    const stillExists = data.find((w: Workspace) => w.id === prev.id)
-                    return stillExists ? prev : defaultWs
-                })
+                const target = !currentWorkspace
+                    ? defaultWs
+                    : (data.find((w: Workspace) => w.id === currentWorkspace.id) || defaultWs)
+
+                if (!currentWorkspace || currentWorkspace.id !== target.id) {
+                    setCurrentWorkspace(target)
+                    onWorkspaceChange?.(target.id)
+                }
             } else {
                 // Create default workspace with user's name
                 const defaultName = profileName ? `${profileName}의 워크스페이스` : "My Workspace"
@@ -333,7 +354,7 @@ export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
                         .is("workspace_id", null)
 
                     setWorkspaces([newWs])
-                    setCurrentWorkspace(newWs)
+                    selectWorkspace(newWs)
                 }
             }
         } catch (err) {
@@ -381,7 +402,7 @@ export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
             if (!error && note?.workspace_id) {
                 const targetWorkspace = workspaces.find(w => w.id === note.workspace_id)
                 if (targetWorkspace && currentWorkspace?.id !== note.workspace_id) {
-                    setCurrentWorkspace(targetWorkspace)
+                    selectWorkspace(targetWorkspace)
                 }
             }
         }
@@ -590,16 +611,14 @@ export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
                         const updatedWs = payload.new as Workspace
                         setWorkspaces((prev) => prev.map((w) => (w.id === updatedWs.id ? updatedWs : w)))
                         if (currentWorkspace?.id === updatedWs.id) {
-                            setCurrentWorkspace(updatedWs)
+                            selectWorkspace(updatedWs)
                         }
                     } else if (payload.eventType === 'DELETE') {
                         const deletedId = payload.old.id
                         setWorkspaces((prev) => prev.filter((w) => w.id !== deletedId))
                         if (currentWorkspace?.id === deletedId) {
-                            setWorkspaces((prev) => {
-                                if (prev.length > 0) setCurrentWorkspace(prev[0])
-                                return prev
-                            })
+                            const remaining = workspaces.filter(w => w.id !== deletedId)
+                            if (remaining.length > 0) selectWorkspace(remaining[0])
                         }
                     }
                 }
@@ -696,7 +715,7 @@ export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
                 })
 
             setWorkspaces(prev => [...prev, data])
-            setCurrentWorkspace(data)
+            selectWorkspace(data)
             setNewWorkspaceName("")
             setIsCreatingWorkspace(false)
             setShowWorkspaceMenu(false)
@@ -749,7 +768,7 @@ export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
             const remaining = workspaces.filter(w => w.id !== id)
             setWorkspaces(remaining)
             if (currentWorkspace?.id === id && remaining.length > 0) {
-                setCurrentWorkspace(remaining[0])
+                selectWorkspace(remaining[0])
             }
             toast.success("워크스페이스가 삭제되었습니다.")
         } catch (err) {
@@ -921,7 +940,13 @@ export function NoteSidebar({ isCollapsed, onToggle }: NoteSidebarProps) {
                                 allNotes={notes}
                                 currentNoteId={currentNoteId}
                                 presenceStates={presenceStates}
-                                onSelect={(id) => router.push(`/note/${id}`)}
+                                onSelect={(id) => {
+                                    router.push(`/note/${id}`)
+                                    // On mobile, find if we should close sidebar
+                                    if (window.innerWidth < 1024) {
+                                        onToggle()
+                                    }
+                                }}
                                 onDelete={deleteNote}
                                 onCreateSubPage={(parentId) => createNote(parentId)}
                             />

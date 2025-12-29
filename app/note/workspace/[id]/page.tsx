@@ -222,16 +222,16 @@ export default function WorkspaceDetailPage() {
             if (error) throw error
 
             if (data && data.length > 0) {
-                const userIds = data.map(m => m.user_id)
+                const userIds = data.map((m: WorkspaceMember) => m.user_id)
                 const { data: usersData } = await supabase
                     .from("users")
                     .select("user_uuid, name")
                     .in("user_uuid", userIds)
 
-                const membersWithUsers = data.map(member => ({
+                const membersWithUsers = data.map((member: WorkspaceMember) => ({
                     ...member,
                     user: {
-                        name: usersData?.find(u => u.user_uuid === member.user_id)?.name || null,
+                        name: usersData?.find((u: UserInfo) => u.user_uuid === member.user_id)?.name || null,
                         email: member.user_id
                     }
                 }))
@@ -272,7 +272,7 @@ export default function WorkspaceDetailPage() {
 
             const existingMemberIds = members.map(m => m.user_id)
             const filteredResults = (data || [])
-                .filter(u => u.user_uuid !== user?.id && !existingMemberIds.includes(u.user_uuid) && u.user_uuid !== workspace?.user_id)
+                .filter((u: UserInfo) => u.user_uuid !== user?.id && !existingMemberIds.includes(u.user_uuid) && u.user_uuid !== workspace?.user_id)
 
             setSearchResults(filteredResults)
         } catch (err) {

@@ -1,17 +1,19 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
-import { Search, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, FolderPlus, FileCode, Check, Copy, Database, Layers, Trash2, Edit2, Play, Upload, FileText, Loader2, X } from "lucide-react"
+import { useState, useMemo, useRef, useEffect } from "react"
+import { Search, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, FolderPlus, FileCode, Check, Copy, Database, Layers, Trash2, Edit2, Play, Upload, FileText, Loader2, X, Download, FileJson } from "lucide-react"
 import { Api } from "../types"
 import { ApiDetail } from "./api-detail"
 import { getSupabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { parseMarkdownToApis } from "../parser"
+import { exportToOpenAPI, exportToMarkdown, downloadFile } from "../exporter"
 import { useRouter, useSearchParams } from "next/navigation"
 
 interface ApiViewerProps {
     apis: Api[]
     projectId: string
+    projectName: string
     onSync: () => void
     accessLevel: number
 }
@@ -22,7 +24,7 @@ type TreeNode = {
     apis: Api[]
 }
 
-export function ApiViewer({ apis, projectId, onSync, accessLevel }: ApiViewerProps) {
+export function ApiViewer({ apis, projectId, projectName, onSync, accessLevel }: ApiViewerProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const apiIdFromUrl = searchParams.get('apiId')
@@ -32,7 +34,9 @@ export function ApiViewer({ apis, projectId, onSync, accessLevel }: ApiViewerPro
     const [isUploading, setIsUploading] = useState(false)
     const [isAddingFolder, setIsAddingFolder] = useState(false)
     const [newFolderName, setNewFolderName] = useState("")
+    const [showExportMenu, setShowExportMenu] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const exportRef = useRef<HTMLDivElement>(null)
 
     // Sync state with URL
     useMemo(() => {
@@ -43,6 +47,18 @@ export function ApiViewer({ apis, projectId, onSync, accessLevel }: ApiViewerPro
             }
         }
     }, [apiIdFromUrl, apis])
+
+    // Close export menu when clicking outside
+    // Close export menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (exportRef.current && !exportRef.current.contains(event.target as Node)) {
+                setShowExportMenu(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
 
     const handleSelectApi = (api: Api) => {
         setSelectedApi(api)
@@ -147,6 +163,18 @@ export function ApiViewer({ apis, projectId, onSync, accessLevel }: ApiViewerPro
         }
     }
 
+    const handleExportOpenAPI = () => {
+        const content = exportToOpenAPI(apis, projectName)
+        downloadFile(content, `${projectName}-openapi.json`, "application/json")
+        setShowExportMenu(false)
+    }
+
+    const handleExportMarkdown = () => {
+        const content = exportToMarkdown(apis, projectName)
+        downloadFile(content, `${projectName}-api.md`, "text/markdown")
+        setShowExportMenu(false)
+    }
+
     const handleAddBlankApi = async () => {
         const newApi = {
             project_id: projectId,
@@ -201,7 +229,7 @@ export function ApiViewer({ apis, projectId, onSync, accessLevel }: ApiViewerPro
     return (
         <div className="flex h-[calc(100vh-120px)] overflow-hidden">
             {/* Left Sidebar - API Tree */}
-            <aside className="w-80 border-r border-neutral-800 bg-black flex flex-col overflow-hidden">
+            <aside className="w-80 border-r border-neutral-800 bg-[#030303] flex flex-col overflow-hidden">
                 <div className="p-4 border-b border-neutral-800 space-y-3">
                     <div className="flex items-center justify-between">
                         <h2 className="text-sm font-bold text-neutral-300 tracking-widest uppercase">APIS</h2>
@@ -215,6 +243,33 @@ export function ApiViewer({ apis, projectId, onSync, accessLevel }: ApiViewerPro
                                 >
                                     {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                                 </button>
+                                <div className="relative" ref={exportRef}>
+                                    <button
+                                        onClick={() => setShowExportMenu(!showExportMenu)}
+                                        className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                                        title="내보내기"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                    </button>
+                                    {showExportMenu && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                                            <button
+                                                onClick={handleExportOpenAPI}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors"
+                                            >
+                                                <FileJson className="w-3.5 h-3.5 text-blue-400" />
+                                                OpenAPI (JSON) 내보내기
+                                            </button>
+                                            <button
+                                                onClick={handleExportMarkdown}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors"
+                                            >
+                                                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                                                Markdown (.md) 내보내기
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                                 <button
                                     onClick={() => setIsAddingFolder(true)}
                                     className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
@@ -284,9 +339,9 @@ export function ApiViewer({ apis, projectId, onSync, accessLevel }: ApiViewerPro
                         renderTree(tree)
                     )}
                 </div>
-            </aside>
+            </aside >
 
-            <div className="flex-1 overflow-hidden bg-black">
+            <div className="flex-1 overflow-hidden bg-[#030303]">
                 {selectedApi ? (
                     <ApiDetail
                         api={selectedApi}
@@ -309,7 +364,7 @@ export function ApiViewer({ apis, projectId, onSync, accessLevel }: ApiViewerPro
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     )
 }
 

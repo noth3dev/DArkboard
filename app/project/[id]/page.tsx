@@ -35,10 +35,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("list")
 
     useEffect(() => {
-        if (user) {
+        if (user && accessLevel !== null) {
             fetchData()
         }
-    }, [id, user])
+    }, [id, user, accessLevel])
 
     async function fetchData() {
         await Promise.all([fetchProject(), fetchAllMembers(), fetchTasks(), fetchAssets(), fetchApis()])
@@ -81,20 +81,31 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             const { data, error } = await supabase.from("projects").select("*").eq("id", id).single()
 
             if (error) throw error
-            setProject(data)
 
             const { data: membersData } = await supabase
                 .from("project_members")
                 .select(`user_uuid, role, user:users(user_uuid, name, name_eng)`)
                 .eq("project_id", id)
 
-            setMembers(
-                (membersData || []).map((m: { user_uuid: string; role: string | null; user: TeamMember | TeamMember[] }) => ({
-                    user_uuid: m.user_uuid,
-                    role: m.role,
-                    user: Array.isArray(m.user) ? m.user[0] : m.user,
-                }))
-            )
+            const projectMembers = (membersData || []).map((m: any) => ({
+                user_uuid: m.user_uuid,
+                role: m.role,
+                user: Array.isArray(m.user) ? m.user[0] : m.user,
+            }))
+
+            // 권한 체크: 공개 프로젝트거나, 멤버거나, 생성자거나, 관리자(Level IV)인 경우만 허용
+            const isMember = projectMembers.some((m: any) => m.user_uuid === user?.id)
+            const isOwner = data.created_by === user?.id
+            const isAdmin = (accessLevel ?? 0) >= 4
+
+            if (!data.is_public && !isMember && !isOwner && !isAdmin) {
+                toast.error("이 프로젝트에 접근할 권한이 없습니다.")
+                router.push("/project")
+                return
+            }
+
+            setProject(data)
+            setMembers(projectMembers)
         } catch (err) {
             console.error("Error fetching project:", err)
         } finally {
@@ -360,7 +371,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
     if (authLoading || loading) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="min-h-screen bg-[#030303] flex items-center justify-center">
                 <div className="text-neutral-400">로딩 중...</div>
             </div>
         )
@@ -370,7 +381,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
     if ((accessLevel ?? 0) === 0) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="min-h-screen bg-[#030303] flex items-center justify-center">
                 <div className="text-center text-neutral-400">
                     <p className="mb-4">이 페이지에 접근할 권한이 없습니다.</p>
                     <button onClick={() => router.push("/")} className="text-white underline">대시보드로 돌아가기</button>
@@ -381,7 +392,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
     if (!project) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="min-h-screen bg-[#030303] flex items-center justify-center">
                 <div className="text-center">
                     <p className="text-neutral-400 mb-4">프로젝트를 찾을 수 없습니다</p>
                     <button onClick={() => router.push("/project")} className="text-white hover:underline">목록으로 돌아가기</button>
@@ -391,7 +402,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
 
     return (
-        <div className="min-h-screen bg-black text-white">
+        <div className="min-h-screen bg-[#030303] text-white">
             <ProjectHeader
                 project={project}
                 accessLevel={accessLevel ?? 0}
@@ -408,6 +419,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <ApiViewer
                     apis={apis}
                     projectId={id}
+                    projectName={project.name}
                     accessLevel={accessLevel ?? 0}
                     onSync={handleSyncApis}
                 />

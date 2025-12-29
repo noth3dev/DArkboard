@@ -10,15 +10,17 @@ import { Api } from "../../types"
 export default function ApiDetailPage({ params }: { params: Promise<{ id: string; apiId: string }> }) {
     const { id, apiId } = use(params)
     const router = useRouter()
-    const { user } = useAuth()
+    const { user, accessLevel } = useAuth()
     const [api, setApi] = useState<Api | null>(null)
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState("params")
     const [copied, setCopied] = useState(false)
 
     useEffect(() => {
-        fetchApi()
-    }, [apiId])
+        if (user && accessLevel !== null) {
+            fetchApi()
+        }
+    }, [apiId, user, accessLevel])
 
     async function fetchApi() {
         try {
@@ -30,7 +32,21 @@ export default function ApiDetailPage({ params }: { params: Promise<{ id: string
                 .single()
 
             if (error) throw error
-            setApi(data)
+
+            // 권한 체크: 해당 프로젝트가 공개거나, 사용자가 멤버/소유자/관리자인지 확인
+            const { data: projectData } = await supabase.from("projects").select("*").eq("id", id).single()
+            const { data: membersData } = await supabase.from("project_members").select("user_uuid").eq("project_id", id)
+
+            const isMember = membersData?.some((m: any) => m.user_uuid === user?.id)
+            const isAdmin = (accessLevel ?? 0) >= 4
+            const isOwner = projectData?.created_by === user?.id
+
+            if (projectData && !projectData.is_public && !isMember && !isAdmin && !isOwner) {
+                // 권한 없음
+                setApi(null)
+            } else {
+                setApi(data)
+            }
         } catch (err) {
             console.error("Error fetching api:", err)
         } finally {
@@ -50,8 +66,8 @@ export default function ApiDetailPage({ params }: { params: Promise<{ id: string
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-neutral-400 mb-4">API 정보를 찾을 수 없습니다.</p>
-                    <button onClick={() => router.back()} className="text-white hover:underline">돌아가기</button>
+                    <p className="text-neutral-400 mb-4">API 정보를 찾을 수 없거나 접근 권한이 없습니다.</p>
+                    <button onClick={() => router.push("/project")} className="text-white hover:underline">프로젝트 목록으로 돌아가기</button>
                 </div>
             </div>
         )
@@ -217,8 +233,8 @@ export default function ApiDetailPage({ params }: { params: Promise<{ id: string
                                         <div key={code} className="border border-neutral-800 rounded-xl overflow-hidden bg-neutral-950/50">
                                             <div className="flex items-center gap-4 px-4 py-3 bg-neutral-900/30 border-b border-neutral-800">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-bold font-mono ${isSuccess ? "bg-green-900/30 text-green-400 border border-green-900/50" :
-                                                        code.startsWith("4") ? "bg-yellow-900/30 text-yellow-400 border border-yellow-900/50" :
-                                                            "bg-red-900/30 text-red-400 border border-red-900/50"
+                                                    code.startsWith("4") ? "bg-yellow-900/30 text-yellow-400 border border-yellow-900/50" :
+                                                        "bg-red-900/30 text-red-400 border border-red-900/50"
                                                     }`}>{code}</span>
                                                 <span className="text-sm font-medium text-white">{apidogName || response.description || "No description"}</span>
                                             </div>
@@ -309,9 +325,9 @@ function SchemaViewer({ schema, level = 0 }: { schema: any, level?: number }) {
                     <div className="flex items-center gap-2 flex-wrap">
                         {apidogName && <span className="text-neutral-300 font-semibold">{apidogName}</span>}
                         <span className={`px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-[10px] ${type === "string" ? "text-green-400" :
-                                type === "integer" || type === "number" ? "text-orange-400" :
-                                    type === "boolean" ? "text-red-400" :
-                                        "text-blue-400"
+                            type === "integer" || type === "number" ? "text-orange-400" :
+                                type === "boolean" ? "text-red-400" :
+                                    "text-blue-400"
                             }`}>{type}</span>
                         {description && <span className="text-neutral-500 truncate">{description}</span>}
                     </div>

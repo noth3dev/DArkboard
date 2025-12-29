@@ -80,11 +80,11 @@ export default function ProjectPage() {
   })
 
   useEffect(() => {
-    if (user) {
+    if (user && accessLevel !== null) {
       fetchProjects()
       fetchInitialData()
     }
-  }, [user])
+  }, [user, accessLevel])
 
   async function fetchInitialData() {
     try {
@@ -143,7 +143,18 @@ export default function ProjectPage() {
         })
       )
 
-      setProjects(projectsWithDetails)
+      const filteredProjects = projectsWithDetails.filter((project: any) => {
+        if (project.is_public) return true
+        const isMember = project.members?.some((m: any) => m.user_uuid === user?.id)
+        if (isMember) return true
+        if (project.created_by === user?.id) return true
+        // 고레벨 관리자(Level IV 이상)는 모든 프로젝트를 볼 수 있도록 함
+        // 사용자가 명시적으로 관리자 레벨을 4로 올렸으므로 이를 반영
+        if ((accessLevel ?? 0) >= 4) return true
+        return false
+      })
+
+      setProjects(filteredProjects)
     } catch (err) {
       console.error("Error fetching projects:", err)
     } finally {

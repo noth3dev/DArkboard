@@ -15,6 +15,50 @@ interface ApiDetailProps {
     onDelete?: () => void
 }
 
+const handleEditorWillMount = (monaco: any) => {
+    monaco.editor.defineTheme('homework-theme', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [
+            { token: 'comment', foreground: '6272a4', fontStyle: 'italic' },
+            { token: 'keyword', foreground: 'ff79c6' },
+            { token: 'string', foreground: 'f1fa8c' },
+            { token: 'number', foreground: 'bd93f9' },
+            { token: 'operator', foreground: 'ff79c6' },
+            { token: 'type', foreground: '8be9fd' },
+            { token: 'function', foreground: '50fa7b' },
+        ],
+        colors: {
+            'editor.background': '#030303',
+            'editor.foreground': '#f8f8f2',
+            'editor.lineHighlightBackground': '#0a0a0a',
+            'editorCursor.foreground': '#aeafad',
+            'editorWhitespace.foreground': '#3b3a32',
+            'editorIndentGuide.background': '#151515',
+            'editorIndentGuide.activeBackground': '#333333',
+            'editorLineNumber.foreground': '#333333',
+            'editorLineNumber.activeForeground': '#888888',
+            'editor.selectionBackground': '#264f78',
+        }
+    });
+}
+
+const commonEditorOptions = {
+    minimap: { enabled: false },
+    fontSize: 13,
+    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+    scrollBeyondLastLine: false,
+    wordWrap: "on" as const,
+    padding: { top: 16, bottom: 16 },
+    lineNumbers: "on" as const,
+    glyphMargin: false,
+    folding: true,
+    lineDecorationsWidth: 0,
+    lineNumbersMinChars: 3,
+    renderLineHighlight: "all" as const,
+    fontLigatures: true,
+}
+
 export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps) {
     const [activeTab, setActiveTab] = useState("params")
     const [activeCodeTab, setActiveCodeTab] = useState("js-fetch")
@@ -196,29 +240,27 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
 
     if (isEditing) {
         return (
-            <div className="flex flex-col h-full bg-black">
-                <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-                    <h2 className="text-white font-medium flex items-center gap-2">
-                        <Edit2 className="w-4 h-4" /> API 편집
+            <div className="flex flex-col h-full bg-[#030303]">
+                <div className="flex items-center justify-between px-4 py-1.5 border-b border-neutral-800 bg-neutral-900/50 min-h-[44px]">
+                    <h2 className="text-sm font-bold text-neutral-300 tracking-widest uppercase flex items-center gap-2">
+                        <Edit2 className="w-3.5 h-3.5" /> API 편집
                     </h2>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 text-sm transition-colors">취소</button>
-                        <button onClick={handleSave} className="flex items-center gap-2 px-4 py-1.5 bg-white text-black rounded-md text-sm font-medium hover:bg-neutral-200 transition-colors">
-                            <Save className="w-4 h-4" /> 저장하기
+                        <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 text-[11px] font-medium transition-colors">취소</button>
+                        <button onClick={handleSave} className="flex items-center gap-2 px-3 py-1.5 bg-white text-black rounded-md text-[11px] font-bold hover:bg-neutral-200 transition-colors shadow-[0_0_10px_rgba(255,255,255,0.1)]">
+                            <Save className="w-3.5 h-3.5" /> 저장하기
                         </button>
                     </div>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 overflow-hidden bg-[#030303] relative">
                     <Editor
                         height="100%"
-                        defaultLanguage="json"
-                        theme="vs-dark"
+                        language="json"
+                        theme="homework-theme"
+                        beforeMount={handleEditorWillMount}
                         value={editValue}
                         onChange={(v) => setEditValue(v || "")}
-                        options={{
-                            minimap: { enabled: false },
-                            fontSize: 13,
-                        }}
+                        options={commonEditorOptions}
                     />
                 </div>
             </div>
@@ -226,7 +268,7 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
     }
 
     return (
-        <div className="flex h-full overflow-hidden bg-black">
+        <div className="flex h-full overflow-hidden bg-[#030303]">
             {/* Main Content */}
             <main className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
                 {/* Header Section */}
@@ -297,7 +339,7 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
                     </div>
 
                     {showDirectRun && (
-                        <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200">
+                        <div className="fixed inset-0 z-50 bg-[#030303] flex flex-col animate-in fade-in duration-200">
                             <div className="flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur-md">
                                 <div className="flex items-center gap-4 flex-1">
                                     <button onClick={() => setShowDirectRun(false)} className="p-2 hover:bg-neutral-800 rounded-lg text-neutral-400">
@@ -326,7 +368,7 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
 
                             <div className="flex-1 flex overflow-hidden">
                                 {/* Left Side: Configuration */}
-                                <div className="w-1/2 border-right border-neutral-800 flex flex-col overflow-y-auto no-scrollbar p-6 space-y-8 bg-black">
+                                <div className="w-1/2 border-right border-neutral-800 flex flex-col overflow-y-auto no-scrollbar p-6 space-y-8 bg-[#030303]">
                                     {/* Path Params */}
                                     {Object.keys(pathParams).length > 0 && (
                                         <section className="space-y-4">
@@ -340,7 +382,7 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
                                                         <input
                                                             value={val}
                                                             onChange={e => setPathParams(prev => ({ ...prev, [key]: e.target.value }))}
-                                                            className="flex-1 bg-neutral-900 border border-neutral-800 rounded px-3 py-2 text-sm text-neutral-200 outline-none focus:border-blue-500/50 transition-colors"
+                                                            className="flex-1 bg-neutral-900 border border-neutral-800 rounded px-3 py-2 text-sm text-neutral-200 outline-none transition-colors"
                                                             placeholder={`Value for ${key}`}
                                                         />
                                                     </div>
@@ -398,19 +440,15 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
                                             <h3 className="text-sm font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
                                                 <Code className="w-4 h-4" /> Request Body (JSON)
                                             </h3>
-                                            <div className="flex-1 border border-neutral-800 rounded-lg overflow-hidden">
+                                            <div className="flex-1 border border-neutral-800 rounded-lg overflow-hidden group transition-colors">
                                                 <Editor
                                                     height="100%"
                                                     defaultLanguage="json"
-                                                    theme="vs-dark"
+                                                    theme="homework-theme"
+                                                    beforeMount={handleEditorWillMount}
                                                     value={requestBody}
                                                     onChange={v => setRequestBody(v || "")}
-                                                    options={{
-                                                        minimap: { enabled: false },
-                                                        fontSize: 12,
-                                                        lineNumbers: 'on',
-                                                        padding: { top: 10 }
-                                                    }}
+                                                    options={commonEditorOptions}
                                                 />
                                             </div>
                                         </section>
@@ -418,20 +456,25 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
                                 </div>
 
                                 {/* Right Side: Response */}
-                                <div className="w-1/2 bg-neutral-950 flex flex-col overflow-hidden p-6 space-y-6">
+                                <div className="w-1/2 bg-[#030303] flex flex-col overflow-hidden p-6 space-y-6">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-sm font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
                                             <Terminal className="w-4 h-4" /> Response
                                         </h3>
                                         {response && (
                                             <div className="flex items-center gap-3">
-                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${response.status >= 200 && response.status < 300 ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${response.status >= 200 && response.status < 300
+                                                    ? "bg-emerald-500/20 text-emerald-400"
+                                                    : response.status === 404
+                                                        ? "bg-yellow-500/20 text-yellow-400"
+                                                        : "bg-red-500/20 text-red-400"
+                                                    }`}>
                                                     {response.status} {response.statusText}
                                                 </span>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex-1 border border-neutral-800 rounded-lg bg-black overflow-hidden relative">
+                                    <div className="flex-1 border border-neutral-800 rounded-lg bg-[#030303] overflow-hidden relative">
                                         {!response && !isRunning && (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-700 space-y-3">
                                                 <Activity className="w-12 h-12 opacity-20" />
@@ -448,14 +491,12 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
                                             <Editor
                                                 height="100%"
                                                 defaultLanguage="json"
-                                                theme="vs-dark"
+                                                theme="homework-theme"
+                                                beforeMount={handleEditorWillMount}
                                                 value={typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)}
                                                 options={{
+                                                    ...commonEditorOptions,
                                                     readOnly: true,
-                                                    minimap: { enabled: false },
-                                                    fontSize: 12,
-                                                    lineNumbers: 'on',
-                                                    padding: { top: 10 }
                                                 }}
                                             />
                                         )}
@@ -558,7 +599,7 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
                             .sort((a, b) => a[0].localeCompare(b[0]))
                             .map(([code, response]: [string, any]) => {
                                 const isSuccess = code.startsWith("2")
-                                const statusColor = isSuccess ? "bg-emerald-500" : code.startsWith("4") ? "bg-orange-500" : "bg-red-500"
+                                const statusColor = isSuccess ? "bg-emerald-500" : code === "404" ? "bg-yellow-500" : code.startsWith("4") ? "bg-orange-500" : "bg-red-500"
                                 const isExpanded = expandedResponses[code]
 
                                 return (
@@ -606,7 +647,7 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
             </main>
 
             {/* Right Panel: Requests & Examples */}
-            <aside className="w-[480px] border-l border-neutral-800 bg-black flex flex-col overflow-hidden">
+            <aside className="w-[480px] border-l border-neutral-800 bg-[#030303] flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-1.5 border-b border-neutral-800 bg-neutral-900/50 min-h-[44px]">
                     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
                         {[
@@ -634,20 +675,16 @@ export function ApiDetail({ api, projectId, onUpdate, onDelete }: ApiDetailProps
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-hidden bg-black relative">
+                <div className="flex-1 overflow-hidden bg-[#030303] relative">
                     <Editor
                         height="100%"
                         language={activeCodeTab === 'js-fetch' ? 'javascript' : activeCodeTab === 'python' ? 'python' : activeCodeTab === 'go' ? 'go' : 'shell'}
-                        theme="vs-dark"
+                        theme="homework-theme"
+                        beforeMount={handleEditorWillMount}
                         value={generateCodeSnippet(activeCodeTab)}
                         options={{
+                            ...commonEditorOptions,
                             readOnly: true,
-                            minimap: { enabled: false },
-                            scrollBeyondLastLine: false,
-                            fontSize: 12,
-                            lineNumbers: 'on',
-                            padding: { top: 16, bottom: 40 },
-                            fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
                         }}
                     />
                 </div>

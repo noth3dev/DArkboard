@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth-context"
 import { AuthForm } from "@/components/auth-form"
 import { useEffect, useState, useCallback, useMemo } from "react"
+import { toast } from "sonner"
 import { getSupabase } from "@/lib/supabase"
 import {
     Calendar as CalendarIcon,
@@ -221,27 +222,35 @@ export default function CalendarPage() {
             fetchSchedules()
         } catch (err) {
             console.error("Error saving schedule:", err)
-            alert("일정 저장 중 오류가 발생했습니다.")
+            toast.error("일정 저장 중 오류가 발생했습니다.")
         }
     }
 
     const handleDelete = async () => {
         if (!editingSchedule) return
-        if (!confirm("정말 이 일정을 삭제하시겠습니까?")) return
 
-        try {
-            const supabase = getSupabase()
-            const { error } = await supabase
-                .from("schedules")
-                .delete()
-                .eq("id", editingSchedule.id)
+        toast("일정을 삭제하시겠습니까?", {
+            action: {
+                label: "삭제",
+                onClick: async () => {
+                    try {
+                        const supabase = getSupabase()
+                        const { error } = await supabase
+                            .from("schedules")
+                            .delete()
+                            .eq("id", editingSchedule.id)
 
-            if (error) throw error
-            setShowAddModal(false)
-            fetchSchedules()
-        } catch (err) {
-            console.error("Error deleting schedule:", err)
-        }
+                        if (error) throw error
+                        setShowAddModal(false)
+                        fetchSchedules()
+                        toast.success("일정이 삭제되었습니다.")
+                    } catch (err) {
+                        console.error("Error deleting schedule:", err)
+                        toast.error("삭제 중 오류가 발생했습니다.")
+                    }
+                }
+            }
+        })
     }
 
     function getCalendarDays() {
@@ -756,8 +765,32 @@ export default function CalendarPage() {
                                                     value={formData.category || "기타"}
                                                     onValueChange={(val) => {
                                                         if (val === "new") {
-                                                            const newCat = prompt("Create New Category:");
-                                                            if (newCat) setFormData({ ...formData, category: newCat });
+                                                            toast.custom((t) => (
+                                                                <div className="bg-[#0A0A0A] border border-white/5 p-6 rounded-[32px] shadow-2xl flex flex-col gap-5 min-w-[300px] animate-in fade-in slide-in-from-bottom-2 duration-500 backdrop-blur-2xl">
+                                                                    <div>
+                                                                        <p className="text-[10px] font-black text-white uppercase tracking-[0.2em]">New Classification</p>
+                                                                        <p className="text-[8px] text-neutral-600 font-bold uppercase tracking-widest">Metadata Expansion</p>
+                                                                    </div>
+                                                                    <input
+                                                                        autoFocus
+                                                                        placeholder="CATEGORY NAME..."
+                                                                        className="w-full bg-neutral-950 border border-white/5 rounded-xl px-4 py-3 text-[11px] font-black uppercase tracking-[0.1em] text-white focus:outline-none focus:border-white/20 transition-all placeholder:text-neutral-900"
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                const newCat = (e.target as HTMLInputElement).value.trim();
+                                                                                if (newCat) {
+                                                                                    setFormData({ ...formData, category: newCat });
+                                                                                    toast.dismiss(t);
+                                                                                    toast.success(`${newCat.toUpperCase()} DEFINED`);
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <div className="flex gap-2 justify-end">
+                                                                        <button onClick={() => toast.dismiss(t)} className="text-[9px] font-black text-neutral-700 uppercase tracking-widest hover:text-white transition-colors">Abort</button>
+                                                                    </div>
+                                                                </div>
+                                                            ), { duration: Infinity })
                                                         } else {
                                                             setFormData({ ...formData, category: val });
                                                         }

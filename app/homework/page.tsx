@@ -14,12 +14,16 @@ import {
     FileText,
     HelpCircle,
     Link2,
-    X
+    X,
+    ArrowDownUp,
+    PlayCircle,
+    Archive
 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 import { getSupabase } from "@/lib/supabase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 type Homework = {
     id: string
@@ -56,6 +60,8 @@ export default function HomeworkPage() {
 
     // Assignment States for filtering my homeworks
     const [myAssignments, setMyAssignments] = useState<Set<string>>(new Set())
+    const [activeTab, setActiveTab] = useState<'ongoing' | 'expired'>('ongoing')
+    const [sortOption, setSortOption] = useState<'newest' | 'oldest' | 'deadline_asc' | 'deadline_desc'>('newest')
 
     const fetchData = useCallback(async () => {
         if (!user) return
@@ -125,7 +131,7 @@ export default function HomeworkPage() {
             router.push(`/homework/${data.id}/edit`)
         } catch (e) {
             console.error(e)
-            alert("과제 생성에 실패했습니다.")
+            toast.error("과제 생성에 실패했습니다.")
         }
     }
 
@@ -145,7 +151,7 @@ export default function HomeworkPage() {
             fetchData()
         } catch (err) {
             console.error("Error submitting homework:", err)
-            alert("과제 제출 중 오류가 발생했습니다.")
+            toast.error("과제 제출 중 오류가 발생했습니다.")
         }
     }
 
@@ -214,25 +220,83 @@ export default function HomeworkPage() {
                     </div>
                 </div>
 
+                {/* Tabs & Sort */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setActiveTab('ongoing')}
+                            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'ongoing' ? 'bg-white text-black' : 'text-neutral-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <PlayCircle className="w-4 h-4" />
+                            진행중인 과제
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('expired')}
+                            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'expired' ? 'bg-white text-black' : 'text-neutral-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <Archive className="w-4 h-4" />
+                            만료된 과제
+                        </button>
+                    </div>
+
+                    <div className="relative group">
+                        <select
+                            value={sortOption}
+                            onChange={(e) => setSortOption(e.target.value as any)}
+                            className="appearance-none pl-10 pr-8 py-2.5 bg-secondary border border-border rounded-xl text-sm font-bold text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer hover:text-foreground transition-colors"
+                        >
+                            <option value="newest">최신순</option>
+                            <option value="oldest">오래된순</option>
+                            <option value="deadline_asc">마감임박순</option>
+                            <option value="deadline_desc">마감여유순</option>
+                        </select>
+                        <ArrowDownUp className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                </div>
+
                 {/* Homework List */}
                 <div className="grid gap-4">
                     {homeworks.filter(hw => {
                         const matchesSearch = hw.title.toLowerCase().includes(searchTerm.toLowerCase())
                         if (!matchesSearch) return false
+
+                        // Tab Filtering
+                        const now = new Date()
+                        now.setHours(0, 0, 0, 0) // Compare based on date only for UX consistency
+                        const dueDate = hw.due_date ? new Date(hw.due_date) : null
+                        const isExpired = dueDate ? dueDate < now : false
+
+                        if (activeTab === 'ongoing' && isExpired) return false
+                        if (activeTab === 'expired' && !isExpired) return false
+
                         if (isMentor) return true
                         const isAssigned = myAssignments.has(hw.id)
                         const hasSubmission = submissions.some(s => s.homework_id === hw.id && s.mentee_id === user.id)
                         return isAssigned || hasSubmission
+                    }).sort((a, b) => {
+                        if (sortOption === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                        if (sortOption === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                        if (sortOption === 'deadline_asc') {
+                            if (!a.due_date) return 1
+                            if (!b.due_date) return -1
+                            return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+                        }
+                        if (sortOption === 'deadline_desc') {
+                            if (!a.due_date) return 1
+                            if (!b.due_date) return -1
+                            return new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+                        }
+                        return 0
                     }).map((hw) => {
                         const mySubmission = submissions.find(s => s.homework_id === hw.id && (isMentor || s.mentee_id === user.id))
                         const isCompleted = mySubmission?.status === 'completed'
                         const isPending = mySubmission?.status === 'pending'
 
                         return (
-                            <div key={hw.id} className="group relative glass rounded-3xl border border-border/50 hover:border-border transition-all p-6 md:p-8">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                    <Link href={`/homework/${hw.id}`} className="flex items-start gap-6 flex-1 min-w-0">
-                                        <div className={`mt-1 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-colors ${isCompleted
+                            <div key={hw.id} className="group relative glass rounded-3xl border border-border/50 hover:border-border transition-all p-5">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <Link href={`/homework/${hw.id}`} className="flex items-start gap-4 flex-1 min-w-0">
+                                        <div className={`mt-0.5 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${isCompleted
                                             ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                                             : isPending
                                                 ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
@@ -241,21 +305,21 @@ export default function HomeworkPage() {
                                             {getFormatIcon(hw.submission_format)}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-3 mb-2">
-                                                <h3 className={`text-xl font-bold font-suit leading-none transition-colors ${isCompleted ? 'text-muted-foreground' : 'text-foreground'}`}>
+                                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                                <h3 className={`text-lg font-bold font-suit leading-none transition-colors ${isCompleted ? 'text-muted-foreground' : 'text-foreground'}`}>
                                                     {hw.title}
                                                 </h3>
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-secondary text-muted-foreground tracking-tight border border-border">
+                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-secondary text-muted-foreground tracking-tight border border-border">
                                                     {hw.submission_format}
                                                 </span>
                                                 {hw.priority === 'high' && (
-                                                    <span className="text-[10px] font-bold text-red-400 flex items-center gap-1">
+                                                    <span className="text-[9px] font-bold text-red-400 flex items-center gap-1">
                                                         <div className="w-1 h-1 rounded-full bg-red-400" />
                                                         Urgent
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-muted-foreground line-clamp-1 mb-6 font-medium leading-relaxed">
+                                            <p className="text-xs text-muted-foreground line-clamp-1 mb-3 font-medium leading-relaxed">
                                                 {hw.description || "과제 설명이 없습니다."}
                                             </p>
                                             <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground/60 font-medium">
@@ -277,6 +341,30 @@ export default function HomeworkPage() {
                             </div>
                         )
                     })}
+
+                    {homeworks.filter(hw => {
+                        const matchesSearch = hw.title.toLowerCase().includes(searchTerm.toLowerCase())
+                        if (!matchesSearch) return false
+                        const now = new Date()
+                        now.setHours(0, 0, 0, 0)
+                        const dueDate = hw.due_date ? new Date(hw.due_date) : null
+                        const isExpired = dueDate ? dueDate < now : false
+
+                        if (activeTab === 'ongoing' && isExpired) return false
+                        if (activeTab === 'expired' && !isExpired) return false
+
+                        if (isMentor) return true
+                        const isAssigned = myAssignments.has(hw.id)
+                        const hasSubmission = submissions.some(s => s.homework_id === hw.id && s.mentee_id === user.id)
+                        return isAssigned || hasSubmission
+                    }).length === 0 && (
+                            <div className="flex flex-col items-center justify-center p-20 text-muted-foreground/50 gap-4">
+                                <BookOpen className="w-12 h-12 opacity-20" />
+                                <p className="text-sm font-medium">
+                                    {activeTab === 'ongoing' ? '현재 진행 중인 과제가 없습니다.' : '만료된 과제가 없습니다.'}
+                                </p>
+                            </div>
+                        )}
                 </div>
 
                 {showSubmitModal && (

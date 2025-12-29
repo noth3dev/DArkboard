@@ -26,6 +26,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { getSupabase } from "@/lib/supabase"
 import { Plus, GripVertical, MoreVertical, Loader2, Users, GraduationCap, Trophy, Trash2, Check, X, Pencil } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { toast } from "sonner"
 
 type User = {
     id: string
@@ -56,6 +57,8 @@ export default function GroupPage() {
     const [loading, setLoading] = useState(true)
     const [activeId, setActiveId] = useState<string | null>(null) // Format: "columnId:userId"
     const [activeUser, setActiveUser] = useState<User | null>(null)
+    const [isAddingGroup, setIsAddingGroup] = useState(false)
+    const [newGroupName, setNewGroupName] = useState("")
 
     // Edit Mode State
     const [isEditMode, setIsEditMode] = useState(false)
@@ -131,7 +134,7 @@ export default function GroupPage() {
             setColumns(cols)
         } catch (e) {
             console.error(e)
-            alert("데이터를 불러오는 중 오류가 발생했습니다.")
+            toast.error("데이터를 불러오는 중 오류가 발생했습니다.")
         } finally {
             setLoading(false)
         }
@@ -153,8 +156,17 @@ export default function GroupPage() {
 
     const saveChanges = async () => {
         if ((accessLevel ?? 0) < 1) return
-        if (!confirm("변경사항을 저장하시겠습니까?")) return
 
+        // Use toast with action for confirmation
+        toast("변경사항을 저장하시겠습니까?", {
+            action: {
+                label: "저장",
+                onClick: () => performSave()
+            }
+        })
+    }
+
+    const performSave = async () => {
         setIsSaving(true)
         try {
             const supabase = getSupabase()
@@ -236,23 +248,103 @@ export default function GroupPage() {
 
             await fetchData()
             setIsEditMode(false)
-            alert("저장되었습니다.")
+            toast.success("저장되었습니다.")
         } catch (e) {
             console.error(e)
-            alert("저장 중 오류가 발생했습니다.")
+            toast.error("저장 중 오류가 발생했습니다.")
         } finally {
             setIsSaving(false)
         }
     }
 
-    const createGroup = async () => {
+    const triggerCreateGroup = () => {
+        toast.custom((t) => (
+            <div className="bg-[#0A0A0A] border border-white/5 p-8 rounded-[40px] shadow-2xl flex flex-col gap-8 min-w-[360px] animate-in fade-in slide-in-from-bottom-4 duration-500 backdrop-blur-2xl">
+                <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center shadow-2xl shadow-white/10">
+                        <Plus className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <p className="text-[12px] font-black text-white uppercase tracking-[0.3em]">Initialize Fragment</p>
+                        <p className="text-[9px] text-neutral-600 font-bold uppercase tracking-widest mt-0.5">Core Structure Definition</p>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="space-y-3">
+                        <label className="text-[9px] font-black text-neutral-700 uppercase tracking-[0.4em] ml-1">Identification</label>
+                        <input
+                            autoFocus
+                            placeholder="ASSIGN NAME..."
+                            className="w-full bg-neutral-950 border border-white/5 rounded-2xl px-6 py-5 text-[11px] font-black uppercase tracking-[0.1em] text-white focus:outline-none focus:border-white/20 transition-all placeholder:text-neutral-900"
+                            id="new-group-name-input"
+                        />
+                    </div>
+
+                    <div className="space-y-3">
+                        <label className="text-[9px] font-black text-neutral-700 uppercase tracking-[0.4em] ml-1">Classification</label>
+                        <div className="flex bg-neutral-950 p-1.5 rounded-2xl border border-white/5">
+                            <button
+                                id="btn-type-edu"
+                                onClick={(e) => {
+                                    const edu = document.getElementById('btn-type-edu');
+                                    const tf = document.getElementById('btn-type-tf');
+                                    edu?.classList.add('bg-white', 'text-black');
+                                    edu?.classList.remove('text-neutral-600');
+                                    tf?.classList.remove('bg-white', 'text-black');
+                                    tf?.classList.add('text-neutral-600');
+                                    (edu as any).dataset.selected = "true";
+                                    (tf as any).dataset.selected = "false";
+                                }}
+                                data-selected="true"
+                                className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-white text-black"
+                            >Educational</button>
+                            <button
+                                id="btn-type-tf"
+                                onClick={(e) => {
+                                    const edu = document.getElementById('btn-type-edu');
+                                    const tf = document.getElementById('btn-type-tf');
+                                    tf?.classList.add('bg-white', 'text-black');
+                                    tf?.classList.remove('text-neutral-600');
+                                    edu?.classList.remove('bg-white', 'text-black');
+                                    edu?.classList.add('text-neutral-600');
+                                    (tf as any).dataset.selected = "true";
+                                    (edu as any).dataset.selected = "false";
+                                }}
+                                data-selected="false"
+                                className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-neutral-600"
+                            >Taskforce</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => toast.dismiss(t)}
+                        className="flex-1 py-5 text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] hover:text-white transition-colors"
+                    >Abort</button>
+                    <button
+                        onClick={() => {
+                            const input = document.getElementById('new-group-name-input') as HTMLInputElement;
+                            const isEdu = (document.getElementById('btn-type-edu') as any).dataset.selected === "true";
+                            if (input.value.trim()) {
+                                toast.dismiss(t);
+                                createGroup(input.value.trim(), isEdu);
+                            } else {
+                                toast.error("IDENTIFICATION REQUIRED");
+                            }
+                        }}
+                        className="flex-1 py-5 bg-white text-black rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 active:scale-95 transition-all shadow-2xl shadow-white/5"
+                    >Execute</button>
+                </div>
+            </div>
+        ), { duration: Infinity });
+    }
+
+    const createGroup = async (name: string, isEdu: boolean) => {
         if ((accessLevel ?? 0) < 1) return
-        const name = prompt("새 그룹 이름을 입력하세요:")
-        if (!name) return
-
-        const type = confirm("'Edu' 유형으로 생성하시겠습니까? (취소 시 'Taskforce')") ? 'Edu' : 'Taskforce'
-
         try {
+            const type = isEdu ? 'Edu' : 'Taskforce'
             const supabase = getSupabase()
             const { data, error } = await supabase.from('groups').insert({ name, type }).select().single()
             if (error) throw error
@@ -262,9 +354,12 @@ export default function GroupPage() {
                 ...prev,
                 [data.id]: []
             }))
+            setIsAddingGroup(false)
+            setNewGroupName("")
+            toast.success("그룹이 생성되었습니다.")
         } catch (e) {
             console.error(e)
-            alert("그룹 생성 실패")
+            toast.error("그룹 생성 실패")
         }
     }
 
@@ -278,24 +373,31 @@ export default function GroupPage() {
             setGroups(groups.map(g => g.id === groupId ? { ...g, type: newType } : g))
         } catch (e) {
             console.error(e)
-            alert("그룹 유형 수정 실패")
+            toast.error("그룹 유형 수정 실패")
         }
     }
 
     const deleteGroup = async (groupId: string) => {
         if ((accessLevel ?? 0) < 3) return
-        if (!confirm("그룹을 삭제하시겠습니까? 그룹 내 인원은 미배정 상태로 전환됩니다.")) return
 
-        try {
-            const supabase = getSupabase()
-            const { error } = await supabase.from('groups').delete().eq('id', groupId)
-            if (error) throw error
-
-            await fetchData()
-        } catch (e) {
-            console.error(e)
-            alert("그룹 삭제 중 오류가 발생했습니다.")
-        }
+        toast("그룹을 삭제하시겠습니까?", {
+            description: "그룹 내 인원은 미배정 상태로 전환됩니다.",
+            action: {
+                label: "삭제",
+                onClick: async () => {
+                    try {
+                        const supabase = getSupabase()
+                        const { error } = await supabase.from('groups').delete().eq('id', groupId)
+                        if (error) throw error
+                        await fetchData()
+                        toast.success("그룹이 삭제되었습니다.")
+                    } catch (e) {
+                        console.error(e)
+                        toast.error("그룹 삭제 중 오류가 발생했습니다.")
+                    }
+                }
+            }
+        })
     }
 
     const updateGroupName = async (groupId: string, newName: string) => {
@@ -308,7 +410,7 @@ export default function GroupPage() {
             setGroups(groups.map(g => g.id === groupId ? { ...g, name: newName } : g))
         } catch (e) {
             console.error(e)
-            alert("그룹 이름 수정 실패")
+            toast.error("그룹 이름 수정 실패")
         }
     }
 
@@ -485,7 +587,7 @@ export default function GroupPage() {
                                 )}
                                 {(accessLevel ?? 0) >= 1 && (
                                     <button
-                                        onClick={createGroup}
+                                        onClick={triggerCreateGroup}
                                         className="w-full sm:w-auto px-8 py-3 bg-foreground text-background rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95"
                                     >
                                         <Plus className="w-3.5 h-3.5" />

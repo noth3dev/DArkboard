@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { toast } from "sonner"
 
 type TeamMember = {
   user_uuid: string
@@ -146,17 +147,26 @@ export default function TeamPage() {
 
   async function handleDeleteTeam(teamId: string) {
     if ((accessLevel ?? 0) < 3) return
-    if (!confirm("정말 이 팀을 삭제하시겠습니까?")) return
+    toast("이 팀을 삭제하시겠습니까?", {
+      action: {
+        label: "삭제",
+        onClick: async () => {
+          try {
+            const supabase = getSupabase()
+            const { error } = await supabase.from("teams").delete().eq("id", teamId)
 
-    try {
-      const supabase = getSupabase()
-      const { error } = await supabase.from("teams").delete().eq("id", teamId)
+            if (error) throw error
+            fetchData()
+            toast.success("팀이 삭제되었습니다.")
+          } catch (err) {
+            console.error("Error deleting team:", err)
+            toast.error("팀 삭제 중 오류가 발생했습니다.")
+          }
+        }
+      }
+    })
+    return
 
-      if (error) throw error
-      fetchData()
-    } catch (err) {
-      console.error("Error deleting team:", err)
-    }
   }
 
   async function handleAddMemberToTeam(teamId: string) {

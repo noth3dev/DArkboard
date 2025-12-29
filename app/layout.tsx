@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/lib/auth-context"
 import { Header } from "@/components/header"
+import { Toaster } from "sonner"
 import "./globals.css"
 export const metadata: Metadata = {
   title: "teamwArk",
@@ -37,6 +38,7 @@ export default function RootLayout({
         <AuthProvider>
           <Header />
           {children}
+          <Toaster position="bottom-right" theme="dark" closeButton richColors />
         </AuthProvider>
         <Analytics />
       </body>

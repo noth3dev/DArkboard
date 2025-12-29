@@ -6,6 +6,7 @@ import { MonitorPlay, Search, Filter, PlayCircle, Clock, ChevronRight, Plus, X, 
 import { useState, useEffect, useCallback } from "react"
 import { getSupabase } from "@/lib/supabase"
 import Link from "next/link"
+import { toast } from "sonner"
 
 type Lecture = {
     id: string
@@ -85,7 +86,7 @@ export default function LecturePage() {
             fetchData()
         } catch (err) {
             console.error("Error adding lecture:", err)
-            alert("강의 등록 중 오류가 발생했습니다.")
+            toast.error("강의 등록 중 오류가 발생했습니다.")
         }
     }
 

@@ -14,6 +14,7 @@ import {
     Terminal,
     Loader2
 } from "lucide-react"
+import { toast } from "sonner"
 import { useState, useEffect, useCallback, use, useMemo } from "react"
 import { getSupabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
@@ -133,7 +134,7 @@ export default function ProblemSolvePage({ params }: { params: Promise<{ id: str
             fetchData()
         } catch (err) {
             console.error("Error submitting quiz:", err)
-            alert("제출 중 오류가 발생했습니다.")
+            toast.error("제출 중 오류가 발생했습니다.")
         } finally {
             setSubmitting(false)
         }
@@ -348,7 +349,7 @@ export default function ProblemSolvePage({ params }: { params: Promise<{ id: str
                         onViewSub={setViewingSub}
                         onLoadCode={(files) => {
                             setCurrentFiles(files)
-                            alert("데이터가 워크스페이스에 로드되었습니다.")
+                            toast.success("데이터가 워크스페이스에 로드되었습니다.")
                         }}
                         mySub={mySub}
                     />
@@ -404,10 +405,32 @@ export default function ProblemSolvePage({ params }: { params: Promise<{ id: str
                                                 ) : problem?.allow_file_addition && (
                                                     <button
                                                         onClick={() => {
-                                                            const fileName = prompt("파일 이름을 입력하세요 (예: styles.css)")
-                                                            if (fileName) {
-                                                                setCurrentFiles((prev: any) => ({ ...prev, [fileName]: { code: "" } }))
-                                                            }
+                                                            toast.custom((t) => (
+                                                                <div className="bg-[#0A0A0A] border border-white/5 p-6 rounded-[32px] shadow-2xl flex flex-col gap-5 min-w-[300px] animate-in fade-in slide-in-from-bottom-2 duration-500 backdrop-blur-2xl">
+                                                                    <div>
+                                                                        <p className="text-[10px] font-black text-white uppercase tracking-[0.2em]">New Entry</p>
+                                                                        <p className="text-[8px] text-neutral-600 font-bold uppercase tracking-widest">Workspace Expansion</p>
+                                                                    </div>
+                                                                    <input
+                                                                        autoFocus
+                                                                        placeholder="FILE NAME..."
+                                                                        className="w-full bg-neutral-950 border border-white/5 rounded-xl px-4 py-3 text-[11px] font-black uppercase tracking-[0.1em] text-white focus:outline-none focus:border-white/20 transition-all placeholder:text-neutral-900"
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                const val = (e.target as HTMLInputElement).value.trim();
+                                                                                if (val) {
+                                                                                    setCurrentFiles((prev: any) => ({ ...prev, [val]: { code: "" } }));
+                                                                                    toast.dismiss(t);
+                                                                                    toast.success(`${val.toUpperCase()} REGISTERED`);
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <div className="flex gap-2 justify-end">
+                                                                        <button onClick={() => toast.dismiss(t)} className="text-[9px] font-black text-neutral-700 uppercase tracking-widest hover:text-white transition-colors">Abort</button>
+                                                                    </div>
+                                                                </div>
+                                                            ), { duration: Infinity })
                                                         }}
                                                         className="p-2 text-muted-foreground hover:text-foreground transition-all hover:bg-white/5 rounded-lg"
                                                         title="Add Asset"
@@ -509,7 +532,7 @@ export default function ProblemSolvePage({ params }: { params: Promise<{ id: str
                         setCurrentFiles(files)
                         setViewingSub(null)
                         if (isMentor) setIsReviewMode(true)
-                        alert(isMentor ? "코드가 리뷰 터미널에 마운트되었습니다." : "코드가 에디터에 로드되었습니다.")
+                        toast.success(isMentor ? "코드가 리뷰 터미널에 마운트되었습니다." : "코드가 에디터에 로드되었습니다.")
                     }}
                 />
             )}

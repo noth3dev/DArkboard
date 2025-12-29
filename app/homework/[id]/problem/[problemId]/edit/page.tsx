@@ -25,6 +25,7 @@ import { useState, useEffect, useCallback, use } from "react"
 import { getSupabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
+import { toast } from "sonner"
 
 // Dynamic import for BlockNote to avoid SSR issues
 // BlockNote removed
@@ -264,7 +265,7 @@ export default function ProblemEditPage({ params }: { params: Promise<{ id: stri
 
     const handleSave = async () => {
         if (!title.trim()) {
-            alert("식별 정보(Title)를 입력해주세요.")
+            toast.error("식별 정보(Title)를 입력해주세요.")
             return
         }
         setSaving(true)
@@ -292,16 +293,65 @@ export default function ProblemEditPage({ params }: { params: Promise<{ id: stri
             router.push(`/homework/${id}/edit`)
         } catch (err) {
             console.error("Error saving problem:", err)
-            alert("문제 저장 중 오류가 발생했습니다.")
+            toast.error("문제 저장 중 오류가 발생했습니다.")
             setSaving(false)
         }
     }
 
     const addFile = () => {
-        const fileName = prompt("파일 이름을 입력하세요 (예: styles.css)")
-        if (fileName && !files[fileName]) {
-            setFiles({ ...files, [fileName]: { code: "" } })
-        }
+        toast.custom((t) => (
+            <div className="bg-neutral-950 border border-neutral-800 p-6 rounded-2xl shadow-2xl flex flex-col gap-4 min-w-[320px] animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="space-y-1">
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest">파일 추가</h3>
+                    <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">새로운 파일의 이름을 입력하세요</p>
+                </div>
+                <input
+                    autoFocus
+                    placeholder="example.css"
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-neutral-600 font-mono placeholder:text-neutral-700"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            const val = e.currentTarget.value
+                            if (val && !files[val]) {
+                                setFiles(prev => ({ ...prev, [val]: { code: "" } }))
+                                toast.dismiss(t)
+                                toast.success("파일이 추가되었습니다.")
+                            } else if (files[val]) {
+                                toast.error("이미 존재하는 파일입니다.")
+                            } else {
+                                toast.error("파일 이름을 입력해주세요.")
+                            }
+                        }
+                    }}
+                />
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={() => toast.dismiss(t)}
+                        className="px-4 py-2 text-[10px] font-bold text-neutral-500 hover:text-white transition-colors uppercase tracking-widest"
+                    >
+                        취소
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            const input = e.currentTarget.parentElement?.previousElementSibling as HTMLInputElement
+                            const val = input.value
+                            if (val && !files[val]) {
+                                setFiles(prev => ({ ...prev, [val]: { code: "" } }))
+                                toast.dismiss(t)
+                                toast.success("파일이 추가되었습니다.")
+                            } else if (files[val]) {
+                                toast.error("이미 존재하는 파일입니다.")
+                            } else {
+                                toast.error("파일 이름을 입력해주세요.")
+                            }
+                        }}
+                        className="px-4 py-2 bg-white text-black text-[10px] font-black rounded-xl hover:bg-neutral-200 transition-colors uppercase tracking-widest"
+                    >
+                        추가
+                    </button>
+                </div>
+            </div>
+        ), { duration: Infinity })
     }
 
     const removeFile = (name: string) => {

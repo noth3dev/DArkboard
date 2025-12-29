@@ -6,6 +6,7 @@ import { getSupabase, type Expense } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { AuthForm } from "@/components/auth-form"
 import { ArrowLeft, Calendar, FileText, User, TrendingUp, TrendingDown, Pencil, Trash2, X, Save } from "lucide-react"
+import { toast } from "sonner"
 
 export default function ExpenseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -83,16 +84,24 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     // access_level 3 이상만 삭제 가능
     if ((accessLevel ?? 0) < 3) return
 
-    if (!confirm("정말 삭제하시겠습니까?")) return
-    try {
-      const supabase = getSupabase()
-      const { error } = await supabase.from("expenses").delete().eq("id", id)
+    toast("정말 삭제하시겠습니까?", {
+      action: {
+        label: "삭제",
+        onClick: async () => {
+          try {
+            const supabase = getSupabase()
+            const { error } = await supabase.from("expenses").delete().eq("id", id)
 
-      if (error) throw error
-      router.push("/")
-    } catch (err) {
-      console.error("Error deleting expense:", err)
-    }
+            if (error) throw error
+            toast.success("항목이 삭제되었습니다.")
+            router.push("/")
+          } catch (err) {
+            console.error("Error deleting expense:", err)
+            toast.error("삭제 중 오류가 발생했습니다.")
+          }
+        }
+      }
+    })
   }
 
   function formatCurrency(amount: number) {

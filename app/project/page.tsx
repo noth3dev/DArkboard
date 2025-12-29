@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
 import { Folder, Plus, Search, X, LayoutGrid, Calendar as CalendarIcon, Kanban, ChevronRight, Users, Clock, AlertCircle, FileText, CheckCircle2, MoreHorizontal, FolderIcon, ExternalLink, Tag, CalendarDays, Columns3, ClipboardList, Lock as LockIcon, Globe, Check, UsersRound } from "lucide-react"
+import { toast } from "sonner"
 import {
   Select,
   SelectContent,
@@ -192,7 +193,7 @@ export default function ProjectPage() {
       fetchProjects()
     } catch (err: any) {
       console.error("Error adding project:", err?.message || err)
-      alert(`프로젝트 추가 중 오류가 발생했습니다: ${err?.message || "알 수 없는 오류"}`)
+      toast.error(`프로젝트 추가 중 오류가 발생했습니다: ${err?.message || "알 수 없는 오류"}`)
     }
   }
 

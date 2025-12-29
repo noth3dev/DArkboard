@@ -21,6 +21,7 @@ import {
     CheckCircle2,
     Loader2
 } from "lucide-react"
+import { toast } from "sonner"
 import Link from "next/link"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
@@ -183,7 +184,7 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
 
         } catch (e) {
             console.error(e)
-            alert("과제 정보를 불러오는데 실패했습니다.")
+            toast.error("과제 정보를 불러오는데 실패했습니다.")
             router.push('/homework')
         } finally {
             setLoading(false)
@@ -250,13 +251,13 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
             }
 
             if (!silent) {
-                alert("과제가 성공적으로 업데이트되었습니다.")
+                toast.success("과제가 성공적으로 업데이트되었습니다.")
                 router.push(`/homework/${id}`)
             }
             return true
         } catch (e) {
             console.error(e)
-            alert("변경사항 저장에 실패했습니다.")
+            toast.error("변경사항 저장에 실패했습니다.")
             return false
         } finally {
             setSaving(false)
@@ -271,16 +272,24 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
     }
 
     const handleDeleteHomework = async () => {
-        if (!confirm("정말로 이 과제 전체를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return
-        try {
-            const supabase = getSupabase()
-            const { error } = await supabase.from('homeworks').delete().eq('id', id)
-            if (error) throw error
-            router.push('/homework')
-        } catch (e) {
-            console.error(e)
-            alert("과제 삭제에 실패했습니다.")
-        }
+        toast("정말로 이 과제 전체를 삭제하시겠습니까?", {
+            description: "이 작업은 되돌릴 수 없습니다.",
+            action: {
+                label: "삭제",
+                onClick: async () => {
+                    try {
+                        const supabase = getSupabase()
+                        const { error } = await supabase.from('homeworks').delete().eq('id', id)
+                        if (error) throw error
+                        router.push('/homework')
+                        toast.success("과제가 삭제되었습니다.")
+                    } catch (e) {
+                        console.error(e)
+                        toast.error("과제 삭제에 실패했습니다.")
+                    }
+                }
+            }
+        })
     }
 
     // Assignments
@@ -319,13 +328,20 @@ export default function HomeworkEditPage({ params }: { params: Promise<{ id: str
     }
 
     const handleDeleteProblem = async (problemId: string) => {
-        if (!confirm("이 문제를 삭제하시겠습니까?")) return
-        try {
-            const supabase = getSupabase()
-            const { error } = await supabase.from('problems').delete().eq('id', problemId)
-            if (error) throw error
-            setProblems(prev => prev.filter(p => p.id !== problemId))
-        } catch (e) { console.error(e); alert("문제 삭제에 실패했습니다.") }
+        toast("이 문제를 삭제하시겠습니까?", {
+            action: {
+                label: "삭제",
+                onClick: async () => {
+                    try {
+                        const supabase = getSupabase()
+                        const { error } = await supabase.from('problems').delete().eq('id', problemId)
+                        if (error) throw error
+                        setProblems(prev => prev.filter(p => p.id !== problemId))
+                        toast.success("문제가 삭제되었습니다.")
+                    } catch (e) { console.error(e); toast.error("문제 삭제에 실패했습니다.") }
+                }
+            }
+        })
     }
 
 

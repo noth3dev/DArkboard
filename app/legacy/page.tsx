@@ -35,6 +35,7 @@ import {
     Flag,
     Folder as FolderIcon
 } from "lucide-react"
+import { toast } from "sonner"
 
 type LegacyRecord = {
     id: string
@@ -239,7 +240,7 @@ export default function LegacyPage() {
             setFormData({ ...formData, image_urls: newUrls })
         } catch (err) {
             console.error("Error uploading images:", err)
-            alert("이미지 업로드 중 오류가 발생했습니다.")
+            toast.error("이미지 업로드 중 오류가 발생했습니다.")
         } finally {
             setUploading(false)
         }
@@ -280,30 +281,38 @@ export default function LegacyPage() {
                 if (error) throw error
             }
 
-            setShowFormModal(false)
             fetchRecords()
         } catch (err) {
             console.error("Error saving record:", err)
-            alert("저장 중 오류가 발생했습니다.")
+            toast.error("저장 중 오류가 발생했습니다.")
         }
     }
 
     const handleDelete = async (id: string, e?: React.MouseEvent) => {
         e?.stopPropagation()
-        if (!confirm("정말 이 기록을 삭제하시겠습니까?")) return
-        try {
-            const supabase = getSupabase()
-            const { error } = await supabase
-                .from("legacy_records")
-                .delete()
-                .eq("id", id)
+        toast("이 기록을 삭제하시겠습니까?", {
+            action: {
+                label: "삭제",
+                onClick: async () => {
+                    try {
+                        const supabase = getSupabase()
+                        const { error } = await supabase
+                            .from("legacy_records")
+                            .delete()
+                            .eq("id", id)
 
-            if (error) throw error
-            setShowDetailModal(false)
-            fetchRecords()
-        } catch (err) {
-            console.error("Error deleting record:", err)
-        }
+                        if (error) throw error
+                        setShowDetailModal(false)
+                        fetchRecords()
+                        toast.success("기록이 삭제되었습니다.")
+                    } catch (err) {
+                        console.error("Error deleting record:", err)
+                        toast.error("삭제 중 오류가 발생했습니다.")
+                    }
+                }
+            }
+        })
+        return
     }
 
     const openAddModal = () => {

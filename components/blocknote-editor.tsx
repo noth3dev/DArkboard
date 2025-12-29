@@ -155,6 +155,12 @@ export default function BlockNoteEditor({ initialContent, onChange, editable = t
         .bn-editor-custom [data-gradient] {
            display: none !important;
         }
+        
+        /* Table Styles */
+        .bn-editor-custom .bn-table-content-wrapper { border: 1px solid #262626 !important; border-radius: 8px !important; overflow: hidden !important; }
+        .bn-editor-custom .bn-table { border-collapse: collapse !important; width: 100% !important; background-color: #0d0d0d !important; }
+        .bn-editor-custom .bn-table-cell { border: 1px solid #262626 !important; padding: 8px 12px !important; color: #d4d4d4 !important; }
+        .bn-editor-custom .bn-table-cell[data-header] { background-color: #1a1a1a !important; font-weight: 600 !important; color: #fff !important; }
       `}</style>
     </MantineProvider>
   );

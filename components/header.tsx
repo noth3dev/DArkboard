@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   RefreshCw,
+  NotebookPen,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -128,6 +129,7 @@ export function Header() {
     { href: "/lecture", label: "강의", icon: MonitorPlay, minLevel: 2, title: "강의" },
     { href: "/group", label: "그룹", icon: Users, minLevel: 2, title: "그룹 관리" },
     { href: "/legacy", label: "레거시", icon: Trophy, minLevel: 1, title: "레거시" },
+    { href: "/note", label: "노트", icon: NotebookPen, minLevel: 2, title: "노트" },
   ]
 
   const proNav = [
@@ -135,6 +137,7 @@ export function Header() {
     { href: "/project", label: "프로젝트", icon: Folder, minLevel: 3, title: "프로젝트" },
     { href: "/team", label: "팀", icon: Users, minLevel: 3, title: "팀 관리" },
     { href: "/calendar", label: "일정", icon: Calendar, minLevel: 3, title: "일정" },
+    { href: "/note", label: "노트", icon: NotebookPen, minLevel: 2, title: "노트" },
   ]
 
   const currentNav = system === 'edu' ? eduNav : proNav
@@ -204,7 +207,11 @@ export function Header() {
                         delay: index * 0.05,
                         ease: [0.23, 1, 0.32, 1],
                       }}
+                      className="flex items-center gap-1"
                     >
+                      {item.label === "노트" && (
+                        <div className="w-[1px] h-3 bg-border mx-1 opacity-50" />
+                      )}
                       <Link
                         href={item.href}
                         className="px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2"

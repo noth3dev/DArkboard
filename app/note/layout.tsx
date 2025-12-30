@@ -40,7 +40,7 @@ export default function NoteLayout({ children }: { children: React.ReactNode }) 
     }
 
     return (
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-65px)] bg-black overflow-hidden font-suit relative">
+        <div className="flex flex-col lg:flex-row h-[calc(100dvh-65px)] bg-black overflow-hidden font-suit relative">
             <MobileNoteNav
                 workspaceId={currentWorkspaceId}
                 onWorkspaceChange={setCurrentWorkspaceId}
@@ -55,7 +55,7 @@ export default function NoteLayout({ children }: { children: React.ReactNode }) 
 
             {/* Sidebar container */}
             <div className={cn(
-                "fixed lg:relative top-[65px] lg:top-0 z-[70] lg:z-50 w-fit left-0 h-[calc(100vh-65px)] lg:h-full transition-all duration-300 ease-in-out",
+                "fixed lg:relative top-[65px] lg:top-0 z-[70] lg:z-50 w-fit left-0 h-[calc(100dvh-65px)] lg:h-full transition-all duration-300 ease-in-out",
                 isSidebarCollapsed ? "-translate-x-full lg:translate-x-0" : "translate-x-0"
             )}>
                 <NoteSidebar

@@ -1019,7 +1019,7 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
             </div>
 
             {/* Workspace Selector */}
-            <div className="p-3 border-t border-neutral-900 relative">
+            <div className="p-3 pb-8 lg:pb-3 border-t border-neutral-900 relative">
                 <button
                     onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
                     className="w-full px-3 py-2.5 rounded-lg bg-neutral-900/30 hover:bg-neutral-900/50 border border-neutral-800/50 flex items-center gap-3 transition-all group"

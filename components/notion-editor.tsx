@@ -21,6 +21,7 @@ import { NotebookTabs, FileText, Users, Loader2, Table, Image as ImageIcon, Film
 import { useRouter } from "next/navigation"
 import * as Y from "yjs"
 import { SupabaseProvider } from "@/lib/yjs-supabase-provider"
+import { NoteSkeleton } from "@/components/note-skeleton"
 import {
     uploadNoteAttachment,
     syncAttachments,
@@ -672,16 +673,11 @@ export default function NotionEditor({
         }
     }, [noteId, collaborationUser])
 
+
+
     // Loading state
     if (!isReady || !yDocRef.current || !providerRef.current || !collaborationUser) {
-        return (
-            <div className="min-h-full bg-black text-white p-8 lg:p-16 max-w-4xl mx-auto flex items-center justify-center">
-                <div className="flex items-center gap-3 text-neutral-500">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span className="text-sm">실시간 협업 연결 중...</span>
-                </div>
-            </div>
-        )
+        return <NoteSkeleton />
     }
 
     return (

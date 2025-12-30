@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
+import { NoteSkeleton } from "@/components/note-skeleton"
 const NotionEditor = dynamic(() => import("@/components/notion-editor"), { ssr: false })
 
 export default function NoteDetailPage({ params }: { params: Promise<{ noteId: string }> }) {
@@ -52,14 +53,7 @@ export default function NoteDetailPage({ params }: { params: Promise<{ noteId: s
     }, [loading, fetchNote])
 
     if (isLoading || loading) {
-        return (
-            <div className="h-full flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4 opacity-20">
-                    <div className="w-10 h-10 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Accessing Remark...</span>
-                </div>
-            </div>
-        )
+        return <NoteSkeleton />
     }
 
     if (!noteData) return null

@@ -641,6 +641,18 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
                 })
                 setPresenceStates(noteMapping)
             })
+            .on('broadcast', { event: 'spotlight-request' }, ({ payload }: { payload: any }) => {
+                if (payload.userId === user.id) return
+
+                toast(`${payload.userName}님이 스포트라이트 중입니다`, {
+                    description: `"${payload.noteTitle}" 문서로 이동하시겠습니까?`,
+                    action: {
+                        label: "이동하기",
+                        onClick: () => router.push(`/note/${payload.noteId}`)
+                    },
+                    duration: 8000,
+                })
+            })
             .subscribe(async (status: string) => {
                 if (status === 'SUBSCRIBED') {
                     await channel.track({
@@ -882,6 +894,29 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
         }
     }
 
+    const handleSpotlightMe = useCallback(() => {
+        if (!user || !currentNoteId || !presenceChannelRef.current) {
+            if (!currentNoteId) toast.info("스포트라이트를 하려면 먼저 노트를 선택하세요.")
+            return
+        }
+
+        const currentNote = notes.find(n => n.id === currentNoteId)
+        const noteTitle = currentNote?.title || "제목 없는 노트"
+
+        presenceChannelRef.current.send({
+            type: 'broadcast',
+            event: 'spotlight-request',
+            payload: {
+                userId: user.id,
+                userName: profileName || user.email?.split("@")[0] || "Anonymous",
+                noteId: currentNoteId,
+                noteTitle: noteTitle
+            }
+        })
+
+        toast.success("스포트라이트를 시작했습니다. 다른 사용자들에게 알림을 보냈습니다.")
+    }, [user, currentNoteId, notes, profileName])
+
     const rootNotes = useMemo(() =>
         notes.filter(n => !n.parent_id && n.title.toLowerCase().includes(searchQuery.toLowerCase())),
         [notes, searchQuery]
@@ -970,6 +1005,14 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
                         <img src="/remark.svg" alt="Remark" className="h-4 w-auto opacity-70" />
                     </div>
                     <div className="flex items-center gap-1">
+                        <button
+                            onClick={handleSpotlightMe}
+                            disabled={!currentNoteId}
+                            className="p-1.5 rounded-lg hover:bg-neutral-900 text-neutral-500 hover:text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                            title="Spotlight Me (모두를 여기로 소환)"
+                        >
+                            <Zap className="w-4 h-4" />
+                        </button>
                         <button
                             onClick={() => createNote(null)}
                             className="p-1.5 rounded-lg hover:bg-neutral-900 text-neutral-500 hover:text-white transition-all"

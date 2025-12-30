@@ -74,6 +74,7 @@ export default function NoteDetailPage({ params }: { params: Promise<{ noteId: s
                 noteId={noteId}
                 initialTitle={noteData.title}
                 initialContent={noteData.content}
+                initialUpdatedAt={noteData.updated_at}
                 workspaceId={noteData.workspace_id}
             />
         </div>

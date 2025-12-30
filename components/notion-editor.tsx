@@ -17,7 +17,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { getSupabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
-import { NotebookTabs, FileText, Users, Loader2, Table, Image as ImageIcon, Film, Upload } from "lucide-react"
+import { NotebookTabs, FileText, Users, Loader2, Table, Image as ImageIcon, Film, Upload, CheckCircle2, CloudUpload, AlertCircle, RotateCcw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import * as Y from "yjs"
 import { SupabaseProvider } from "@/lib/yjs-supabase-provider"
@@ -37,6 +37,7 @@ interface NotionEditorProps {
     noteId: string
     initialContent?: any
     initialTitle?: string
+    initialUpdatedAt?: string
     workspaceId?: string
     onTitleChange?: (title: string) => void
 }
@@ -190,6 +191,7 @@ function CollaborativeEditor({
     collaborationUser,
     currentUserId,
     workspaceId,
+    initialUpdatedAt,
 }: {
     noteId: string
     initialContent?: any
@@ -201,12 +203,17 @@ function CollaborativeEditor({
     collaborationUser: CollaborationUser
     currentUserId: string
     workspaceId?: string
+    initialUpdatedAt?: string
 }) {
     const { user } = useAuth()
     const router = useRouter()
     const [documentContent, setDocumentContent] = useState<any>(null)
     // Collaborators state is now inside this component
     const [collaborators, setCollaborators] = useState<CollaborationUser[]>([])
+    const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">("saved")
+    const [lastSaved, setLastSaved] = useState<Date | null>(null)
+    const [hasLocalBackup, setHasLocalBackup] = useState(false)
+    const [backupData, setBackupData] = useState<{ content: any, title: string, timestamp: number } | null>(null)
 
     const schema = useMemo(() => {
         const NoteBlockSpec = createReactBlockSpec(
@@ -238,7 +245,26 @@ function CollaborativeEditor({
     const hasLoadedInitialContent = useRef(false)
     useEffect(() => {
         if (hasLoadedInitialContent.current) return
-        if (!editor || !initialContent) return
+        if (!editor) return
+
+        // Check local backup first
+        const localBackup = localStorage.getItem(`notable-backup-${noteId}`)
+        if (localBackup) {
+            try {
+                const parsed = JSON.parse(localBackup)
+                setBackupData(parsed)
+
+                // Only show backup if it's newer than the DB state by at least 5 seconds
+                const dbTime = initialUpdatedAt ? new Date(initialUpdatedAt).getTime() : 0
+                if (parsed.timestamp > dbTime + 5000) {
+                    setHasLocalBackup(true)
+                }
+            } catch (e) {
+                console.error("Failed to parse local backup:", e)
+            }
+        }
+
+        if (!initialContent) return
 
         // Check if Yjs document is empty (no blocks or just one empty block)
         const currentBlocks = editor.document
@@ -261,7 +287,21 @@ function CollaborativeEditor({
         } else {
             hasLoadedInitialContent.current = true
         }
-    }, [editor, initialContent])
+    }, [editor, initialContent, noteId])
+
+    const restoreBackup = useCallback(() => {
+        if (!backupData || !editor) return
+        try {
+            editor.replaceBlocks(editor.document, backupData.content)
+            setTitle(backupData.title)
+            onTitleChange?.(backupData.title)
+            setHasLocalBackup(false)
+            toast.success("백업 데이터가 복구되었습니다.")
+        } catch (err) {
+            console.error("Failed to restore backup:", err)
+            toast.error("백업 복구에 실패했습니다.")
+        }
+    }, [backupData, editor, setTitle, onTitleChange])
 
     // Setup awareness listener AFTER editor is created (in useEffect, not during render)
     useEffect(() => {
@@ -286,13 +326,18 @@ function CollaborativeEditor({
 
     const saveContent = useCallback(async (content: any, updatedTitle: string) => {
         if (!user || !noteId) return
+        setSaveStatus("saving")
         try {
             const supabase = getSupabase()
             const { error } = await supabase
                 .from("notes")
                 .update({ title: updatedTitle, content, updated_at: new Date().toISOString() })
                 .eq("id", noteId)
+
             if (error) throw error
+
+            setSaveStatus("saved")
+            setLastSaved(new Date())
 
             const noteBlockIds = new Set<string>()
             const extractNoteBlocks = (blocks: any[]) => {
@@ -319,7 +364,10 @@ function CollaborativeEditor({
                 const activeAttachmentIds = extractAttachmentIds(content)
                 await syncAttachments(noteId, activeAttachmentIds)
             }
-        } catch (err) { console.error("Error saving note:", err) }
+        } catch (err) {
+            console.error("Error saving note:", err)
+            setSaveStatus("error")
+        }
     }, [user, noteId])
 
     // File upload handler - for paste and drag/drop
@@ -474,9 +522,30 @@ function CollaborativeEditor({
 
     useEffect(() => {
         const contentToSave = documentContent || editor.document
-        const timeout = setTimeout(() => { if (contentToSave) saveContent(contentToSave, title) }, 500)
+        if (contentToSave) {
+            // Immediate local backup
+            localStorage.setItem(`notable-backup-${noteId}`, JSON.stringify({
+                content: contentToSave,
+                title: title,
+                timestamp: Date.now()
+            }))
+        }
+
+        const timeout = setTimeout(() => { if (contentToSave) saveContent(contentToSave, title) }, 1000)
         return () => clearTimeout(timeout)
-    }, [documentContent, title, saveContent, editor.document])
+    }, [documentContent, title, saveContent, editor.document, noteId])
+
+    // Prevent accidental exit while saving
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (saveStatus === "saving") {
+                e.preventDefault()
+                e.returnValue = ""
+            }
+        }
+        window.addEventListener("beforeunload", handleBeforeUnload)
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+    }, [saveStatus])
 
     const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newTitle = e.target.value
@@ -496,11 +565,44 @@ function CollaborativeEditor({
                 multiple
             />
 
-            {collaborators.length > 1 && (
-                <div className="flex items-center justify-end mb-4">
-                    <CollaboratorsBar collaborators={collaborators} currentUserId={currentUserId} />
+            {hasLocalBackup && backupData && (
+                <div className="flex items-center justify-between px-4 py-2 mb-6 bg-blue-500/10 border border-blue-500/20 rounded-lg animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center gap-2 text-sm text-blue-200">
+                        <AlertCircle className="w-4 h-4 text-blue-400" />
+                        <span>저장되지 않은 이전 작업 내용이 있습니다. ({new Date(backupData.timestamp).toLocaleString()})</span>
+                    </div>
+                    <button
+                        onClick={restoreBackup}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-md transition-colors"
+                    >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        복구하기
+                    </button>
                 </div>
             )}
+
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-4">
+                    {collaborators.length > 1 && (
+                        <CollaboratorsBar collaborators={collaborators} currentUserId={currentUserId} />
+                    )}
+                </div>
+
+                <div className="flex items-center gap-2 text-[11px] font-medium transition-all duration-300">
+                    {saveStatus === "saving" && (
+                        null
+                    )}
+                    {saveStatus === "saved" && lastSaved && (
+                        null
+                    )}
+                    {saveStatus === "error" && (
+                        <div className="flex items-center gap-1.5 text-rose-500">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span>저장 실패 (재시도 중)</span>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             <div className="space-y-4">
                 <input
@@ -624,6 +726,7 @@ export default function NotionEditor({
     noteId,
     initialContent,
     initialTitle,
+    initialUpdatedAt,
     workspaceId,
     onTitleChange
 }: NotionEditorProps) {
@@ -702,6 +805,7 @@ export default function NotionEditor({
                 collaborationUser={collaborationUser}
                 currentUserId={user?.id || ""}
                 workspaceId={workspaceId}
+                initialUpdatedAt={initialUpdatedAt}
             />
 
             <style jsx global>{`

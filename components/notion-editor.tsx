@@ -643,40 +643,49 @@ export default function NotionEditor({
         }
     }, [user, profileName, presenceColor])
 
-    // Setup Supabase provider
+    const [isConnected, setIsConnected] = useState(false)
+
+    // Effect 1: Manage Provider Lifecycle (Depends only on noteId)
     useEffect(() => {
-        if (!noteId || !collaborationUser) return
+        if (!noteId) return
 
         const yDoc = new Y.Doc()
         yDocRef.current = yDoc
 
-        // Create Supabase provider for real-time collaboration
         const supabase = getSupabase()
         const provider = new SupabaseProvider(yDoc, supabase, {
             channel: `homewark-note-${noteId}`,
         })
         providerRef.current = provider
 
-        // Set user awareness
-        provider.awareness.setLocalStateField('user', collaborationUser)
-
-        // Allow connection to establish before showing editor
-        const timeout = setTimeout(() => setIsReady(true), 300)
+        // Small delay to let initial sync happen
+        const timeout = setTimeout(() => {
+            setIsReady(true)
+            setIsConnected(true)
+        }, 500)
 
         return () => {
             clearTimeout(timeout)
             setIsReady(false)
+            setIsConnected(false)
             provider.destroy()
             yDoc.destroy()
             yDocRef.current = null
             providerRef.current = null
         }
-    }, [noteId, collaborationUser])
+    }, [noteId])
+
+    // Effect 2: Update Awareness (Depends on collaborationUser)
+    useEffect(() => {
+        if (providerRef.current && collaborationUser && isConnected) {
+            providerRef.current.awareness.setLocalStateField('user', collaborationUser)
+        }
+    }, [collaborationUser, isConnected])
 
 
 
-    // Loading state
-    if (!isReady || !yDocRef.current || !providerRef.current || !collaborationUser) {
+    // Loading state: Only show skeleton if we haven't established the initial connection for THIS noteId
+    if (!isReady || !isConnected || !yDocRef.current || !providerRef.current || !collaborationUser) {
         return <NoteSkeleton />
     }
 

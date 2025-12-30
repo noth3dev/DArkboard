@@ -120,11 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false)
       })
 
-    // 인증 상태 변경 감지
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setLoading(true)
+      // Don't aggressively set loading(true) for every minor auth event (like token refresh)
+      // applySession will handle profile fetching and eventually set loading(false)
       void applySession(session)
     })
 

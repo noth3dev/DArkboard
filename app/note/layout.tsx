@@ -31,7 +31,8 @@ export default function NoteLayout({ children }: { children: React.ReactNode }) 
         }
     }, [user, loading, accessLevel, router])
 
-    if (loading || !user || (accessLevel ?? 0) < 2) {
+    // Only show global loading on the very first mount or when we truly have no session
+    if (loading && !user) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-white"></div>

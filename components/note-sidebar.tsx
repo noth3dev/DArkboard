@@ -196,12 +196,22 @@ export const NoteItem = ({
                     {note.title || "제목 없는 노트"}
                 </span>
 
-                {/* Presence Indicators */}
-                {presenceStates[note.id] && (
-                    <div className="flex items-center -space-x-1">
-                        {presenceStates[note.id].map((presenceUser, idx) => (
-                            <div
-                                key={`${presenceUser.userId}-${idx}`}
+                {/* Presence Indicators with smooth layout transitions */}
+                <div className="flex items-center -space-x-1 min-h-[14px]">
+                    <AnimatePresence mode="popLayout">
+                        {presenceStates[note.id]?.map((presenceUser) => (
+                            <motion.div
+                                key={presenceUser.userId}
+                                layoutId={`presence-${presenceUser.userId}`}
+                                initial={{ opacity: 0, scale: 0.5 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.5 }}
+                                transition={{
+                                    type: "spring",
+                                    stiffness: 400,
+                                    damping: 35,
+                                    mass: 1
+                                }}
                                 className="relative group/tooltip"
                             >
                                 <div
@@ -222,10 +232,10 @@ export const NoteItem = ({
                                     {/* Arrow pointing right */}
                                     <div className="absolute left-full top-1/2 -translate-y-1/2 border-y-[5px] border-y-transparent border-l-[5px] border-l-neutral-950" />
                                 </div>
-                            </div>
+                            </motion.div>
                         ))}
-                    </div>
-                )}
+                    </AnimatePresence>
+                </div>
 
                 <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100">
                     <button
@@ -423,9 +433,10 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
         fetchMemberProfiles()
     }, [fetchMemberProfiles])
 
-    const fetchNotes = useCallback(async () => {
+    const fetchNotes = useCallback(async (isInitialLoad = false) => {
         if (!user || !currentWorkspace) return
         try {
+            if (isInitialLoad) setIsLoading(true)
             const supabase = getSupabase()
             const { data, error } = await supabase
                 .from("notes")
@@ -438,9 +449,10 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
             setNotes(data || [])
         } catch (err) {
             console.error("Error fetching notes:", err)
-            toast.error("노트를 불러오는 중 오류가 발생했습니다.")
+            // Silently fail on background refresh, only toast on initial load
+            if (isInitialLoad) toast.error("노트를 불러오는 중 오류가 발생했습니다.")
         } finally {
-            setIsLoading(false)
+            if (isInitialLoad) setIsLoading(false)
         }
     }, [user, currentWorkspace])
 
@@ -472,11 +484,15 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
     }, [currentNoteId, user, workspaces, currentWorkspace])
 
     useEffect(() => {
-        if (currentWorkspace) {
-            setIsLoading(true)
-            fetchNotes()
+        if (currentWorkspace && user) {
+            // Only show loader if we don't have ANY notes or if switching to a different workspace
+            const shouldShowLoader = notes.length === 0 || (notes.length > 0 && notes[0].workspace_id !== currentWorkspace.id)
+            if (shouldShowLoader) {
+                setNotes([]) // Clear previous workspace notes to avoid confusion
+            }
+            fetchNotes(shouldShowLoader)
         }
-    }, [currentWorkspace, fetchNotes, user])
+    }, [currentWorkspace?.id, user?.id]) // Optimized dependencies to prevent redundant calls
 
     // Fetch workspace counts when menu opens
     const fetchWorkspaceCounts = useCallback(async () => {

@@ -21,9 +21,10 @@ import { getIconComponent, NoteItem } from "./note-sidebar"
 interface MobileNoteNavProps {
     workspaceId?: string
     onWorkspaceChange: (id: string) => void
+    onToggleSidebar?: () => void
 }
 
-export function MobileNoteNav({ workspaceId, onWorkspaceChange }: MobileNoteNavProps) {
+export function MobileNoteNav({ workspaceId, onWorkspaceChange, onToggleSidebar }: MobileNoteNavProps) {
     const { user, profileName } = useAuth()
     const router = useRouter()
     const params = useParams()
@@ -89,9 +90,9 @@ export function MobileNoteNav({ workspaceId, onWorkspaceChange }: MobileNoteNavP
 
     return (
         <div className="lg:hidden">
-            <header className="fixed top-0 left-0 right-0 h-14 bg-black/80 backdrop-blur-md border-b border-neutral-900 z-40 flex items-center px-4 gap-3">
+            <header className="fixed top-[65px] left-0 right-0 h-14 bg-black/80 backdrop-blur-md border-b border-neutral-900 z-[45] flex items-center px-4 gap-3">
                 <button
-                    onClick={() => setIsOpen(true)}
+                    onClick={() => onToggleSidebar?.()}
                     className="p-2 -ml-2 text-neutral-400 hover:text-white transition-colors"
                 >
                     <Menu className="w-5 h-5" />
@@ -117,116 +118,6 @@ export function MobileNoteNav({ workspaceId, onWorkspaceChange }: MobileNoteNavP
                     <Plus className="w-5 h-5" />
                 </button>
             </header>
-
-            <Drawer.Root open={isOpen} onOpenChange={setIsOpen}>
-                <Drawer.Portal>
-                    <Drawer.Overlay className="fixed inset-0 bg-black/60 z-[60]" />
-                    <Drawer.Content className="bg-[#050505] flex flex-col rounded-t-[32px] h-[85vh] fixed bottom-0 left-0 right-0 z-[70] outline-none border-t border-neutral-800">
-                        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-neutral-800 my-4" />
-
-                        <div className="p-6 pt-0 flex-1 overflow-y-auto custom-scrollbar space-y-6">
-                            {/* Workspace Switcher in Drawer */}
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600 ml-1">Workspace</label>
-                                <button
-                                    onClick={() => setShowWorkspaceSelector(!showWorkspaceSelector)}
-                                    className="w-full flex items-center gap-3 p-4 bg-neutral-900/50 border border-neutral-800/50 rounded-2xl hover:bg-neutral-900 transition-all text-left"
-                                >
-                                    <div className="w-6 h-6 rounded-lg bg-neutral-800 flex items-center justify-center">
-                                        <WorkspaceIcon className="w-4 h-4" style={{ color: currentWorkspace?.color }} />
-                                    </div>
-                                    <span className="flex-1 text-[13px] font-bold text-neutral-200">{currentWorkspace?.name}</span>
-                                    <ChevronDown className={cn("w-4 h-4 text-neutral-600 transition-transform", showWorkspaceSelector && "rotate-180")} />
-                                </button>
-
-                                {showWorkspaceSelector && (
-                                    <div className="grid gap-2 p-1">
-                                        {workspaces.map(ws => (
-                                            <button
-                                                key={ws.id}
-                                                onClick={() => {
-                                                    onWorkspaceChange(ws.id)
-                                                    setShowWorkspaceSelector(false)
-                                                }}
-                                                className={cn(
-                                                    "flex items-center gap-3 p-3 rounded-xl transition-all",
-                                                    workspaceId === ws.id ? "bg-neutral-800" : "hover:bg-neutral-900/50"
-                                                )}
-                                            >
-                                                <div className="w-5 h-5 flex items-center justify-center">
-                                                    {getIconComponent(ws.icon)({ className: "w-4 h-4", style: { color: ws.color } })}
-                                                </div>
-                                                <span className="flex-1 text-xs font-medium text-neutral-400">{ws.name}</span>
-                                                {workspaceId === ws.id && <Check className="w-3.5 h-3.5 text-emerald-500" />}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Search */}
-                            <div className="relative">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-700" />
-                                <input
-                                    type="text"
-                                    placeholder="Search documents..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full bg-neutral-900/40 border border-neutral-800/50 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-neutral-700 outline-none focus:border-neutral-700"
-                                />
-                            </div>
-
-                            {/* Document Tree */}
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600 ml-1">Documents</label>
-                                {isLoading ? (
-                                    <div className="py-12 flex justify-center opacity-20">
-                                        <div className="w-6 h-6 rounded-full border border-white border-t-transparent animate-spin" />
-                                    </div>
-                                ) : rootNotes.length === 0 ? (
-                                    <div className="py-12 text-center text-[10px] font-bold uppercase tracking-widest text-neutral-800">No documents found</div>
-                                ) : (
-                                    <div className="space-y-1">
-                                        {rootNotes.map(note => (
-                                            <NoteItem
-                                                key={note.id}
-                                                note={note}
-                                                level={0}
-                                                allNotes={notes}
-                                                currentNoteId={currentNoteId}
-                                                presenceStates={{}} // Simplified for mobile drawer
-                                                onSelect={(id) => {
-                                                    router.push(`/note/${id}`)
-                                                    setIsOpen(false)
-                                                }}
-                                                onDelete={() => { }} // Disabled in quick view
-                                                onCreateSubPage={(parentId) => createNote(parentId)}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="p-6 border-t border-neutral-900 flex gap-3">
-                            <button
-                                onClick={() => router.push("/note/workspace")}
-                                className="flex-1 flex items-center justify-center gap-2 p-4 bg-neutral-900 text-neutral-400 hover:text-white rounded-2xl transition-all font-bold text-xs uppercase tracking-widest"
-                            >
-                                <Settings className="w-4 h-4" />
-                                Settings
-                            </button>
-                            <button
-                                onClick={() => createNote()}
-                                className="flex-1 flex items-center justify-center gap-2 p-4 bg-white text-black hover:bg-neutral-200 rounded-2xl transition-all font-black text-xs uppercase tracking-widest"
-                            >
-                                <Plus className="w-4 h-4" />
-                                New Note
-                            </button>
-                        </div>
-                    </Drawer.Content>
-                </Drawer.Portal>
-            </Drawer.Root>
         </div>
     )
 }

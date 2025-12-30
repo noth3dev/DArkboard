@@ -118,7 +118,7 @@ export function getIconComponent(iconName: string) {
 }
 
 export default function WorkspaceSettingsPage() {
-    const { user, loading: authLoading, accessLevel } = useAuth()
+    const { user, loading: authLoading, accessLevel, profileName } = useAuth()
     const router = useRouter()
 
     const [workspaces, setWorkspaces] = useState<Workspace[]>([])
@@ -127,6 +127,15 @@ export default function WorkspaceSettingsPage() {
     const [newName, setNewName] = useState("")
     const [newIcon, setNewIcon] = useState("folder")
     const [newColor, setNewColor] = useState("#6B7280")
+    const { presenceColor: initialPresenceColor } = useAuth()
+    const [globalPresenceColor, setGlobalPresenceColor] = useState(initialPresenceColor || "#2196F3")
+    const [isSavingGlobalColor, setIsSavingGlobalColor] = useState(false)
+
+    useEffect(() => {
+        if (initialPresenceColor) {
+            setGlobalPresenceColor(initialPresenceColor)
+        }
+    }, [initialPresenceColor])
 
     useEffect(() => {
         if (!authLoading && (!user || (accessLevel ?? 0) < 2)) {
@@ -176,6 +185,15 @@ export default function WorkspaceSettingsPage() {
 
             if (error) throw error
 
+            // Add owner to members table
+            await supabase
+                .from("note_workspace_members")
+                .insert({
+                    workspace_id: data.id,
+                    user_id: user.id,
+                    role: "owner"
+                })
+
             setWorkspaces(prev => [...prev, data])
             setNewName("")
             setNewIcon("folder")
@@ -185,6 +203,33 @@ export default function WorkspaceSettingsPage() {
         } catch (err) {
             console.error("Error creating workspace:", err)
             toast.error("워크스페이스 생성 중 오류가 발생했습니다.")
+        }
+    }
+
+    const updateGlobalColor = async () => {
+        if (!user || !globalPresenceColor) return
+        // Basic hex validation
+        if (!/^#[0-9A-Fa-f]{6}$/.test(globalPresenceColor)) {
+            toast.error("올바른 헥사코드 형식이 아닙니다. (예: #3B82F6)")
+            return
+        }
+
+        setIsSavingGlobalColor(true)
+        try {
+            const supabase = getSupabase()
+            const { error } = await supabase
+                .from("users")
+                .update({ presence_color: globalPresenceColor })
+                .eq("user_uuid", user.id)
+
+            if (error) throw error
+            toast.success("글로벌 활동 색상이 저장되었습니다.")
+            // Note: AuthContext will pick up the change on next reload or we could trigger a refresh
+        } catch (err) {
+            console.error("Error updating global color:", err)
+            toast.error("색상 저장 중 오류가 발생했습니다.")
+        } finally {
+            setIsSavingGlobalColor(false)
         }
     }
 
@@ -253,7 +298,52 @@ export default function WorkspaceSettingsPage() {
 
             {/* Content */}
             <div className="max-w-4xl mx-auto px-6 py-8">
-                <div className="space-y-8">
+                <div className="space-y-12">
+                    {/* Global Presence Setting */}
+                    <div className="space-y-4">
+                        <h2 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-1 flex items-center gap-2">
+                            <Palette className="w-3 h-3" />
+                            공통 활동 설정
+                        </h2>
+                        <div className="p-6 rounded-2xl border border-neutral-900 bg-neutral-900/30 flex flex-col md:flex-row items-start md:items-center gap-6">
+                            <div
+                                className="w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center text-white text-xl font-black shrink-0 transition-transform duration-500 hover:rotate-3"
+                                style={{ backgroundColor: globalPresenceColor }}
+                            >
+                                {profileName?.charAt(0).toUpperCase() || "?"}
+                            </div>
+                            <div className="flex-1 space-y-1">
+                                <h3 className="text-sm font-semibold">활동 색상 (프로필)</h3>
+                                <p className="text-xs text-neutral-600">
+                                    모든 워크스페이스에서 자신의 커서와 아바타로 사용될 고유 색상을 헥사코드로 설정합니다.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                <div className="relative flex-1 md:w-32">
+                                    <input
+                                        type="text"
+                                        value={globalPresenceColor}
+                                        onChange={(e) => setGlobalPresenceColor(e.target.value.toUpperCase())}
+                                        placeholder="#000000"
+                                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2 text-sm font-mono outline-none focus:border-neutral-600 transition-all font-bold tracking-wider"
+                                    />
+                                </div>
+                                <button
+                                    onClick={updateGlobalColor}
+                                    disabled={isSavingGlobalColor || globalPresenceColor === initialPresenceColor}
+                                    className="px-4 py-2 rounded-xl bg-white text-black hover:bg-neutral-200 transition-all text-sm font-bold disabled:opacity-30 flex items-center gap-2"
+                                >
+                                    {isSavingGlobalColor ? (
+                                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <Check className="w-4 h-4" />
+                                    )}
+                                    저장
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* My Workspaces */}
                     <div className="space-y-4">
                         <h2 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-1">

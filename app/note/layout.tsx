@@ -44,15 +44,18 @@ export default function NoteLayout({ children }: { children: React.ReactNode }) 
             <MobileNoteNav
                 workspaceId={currentWorkspaceId}
                 onWorkspaceChange={setCurrentWorkspaceId}
+                onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             />
 
+            {/* Backdrop for mobile */}
             <div className={cn(
-                "fixed inset-0 bg-black/50 z-40 transition-opacity lg:hidden",
+                "fixed inset-0 top-[65px] bg-black/60 backdrop-blur-sm z-[60] transition-all duration-500 lg:hidden",
                 isSidebarCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"
             )} onClick={() => setIsSidebarCollapsed(true)} />
 
+            {/* Sidebar container */}
             <div className={cn(
-                "absolute lg:relative z-50 w-fit left-0 h-full transition-all duration-300 ease-in-out hidden lg:block",
+                "fixed lg:relative top-[65px] lg:top-0 z-[70] lg:z-50 w-fit left-0 h-[calc(100vh-65px)] lg:h-full transition-all duration-300 ease-in-out",
                 isSidebarCollapsed ? "-translate-x-full lg:translate-x-0" : "translate-x-0"
             )}>
                 <NoteSidebar
@@ -63,7 +66,7 @@ export default function NoteLayout({ children }: { children: React.ReactNode }) 
                 />
             </div>
 
-            <main className="flex-1 overflow-y-auto custom-scrollbar mt-14 lg:mt-0">
+            <main className="flex-1 overflow-y-auto custom-scrollbar mt-14 lg:mt-0 relative">
                 {children}
             </main>
             <style jsx global>{`

@@ -17,10 +17,20 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { getSupabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
-import { NotebookTabs, FileText, Users, Loader2, Table } from "lucide-react"
+import { NotebookTabs, FileText, Users, Loader2, Table, Image as ImageIcon, Film, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import * as Y from "yjs"
 import { SupabaseProvider } from "@/lib/yjs-supabase-provider"
+import {
+    uploadNoteAttachment,
+    syncAttachments,
+    isAllowedFileType,
+    isFileSizeValid,
+    isImageFile,
+    isVideoFile,
+    MAX_FILE_SIZE
+} from "@/lib/note-attachments"
+import { ImageBlock, VideoBlock, extractAttachmentIds } from "@/components/media-blocks"
 
 interface NotionEditorProps {
     noteId: string
@@ -203,7 +213,12 @@ function CollaborativeEditor({
             { render: NoteBlockRender }
         )
         return BlockNoteSchema.create({
-            blockSpecs: { ...defaultBlockSpecs, note: NoteBlockSpec() }
+            blockSpecs: {
+                ...defaultBlockSpecs,
+                note: NoteBlockSpec(),
+                customImage: ImageBlock(),
+                customVideo: VideoBlock()
+            }
         }) as any
     }, [])
 
@@ -297,8 +312,101 @@ function CollaborativeEditor({
                 if (toArchive.length) await supabase.from("notes").update({ is_archived: true, updated_at: new Date().toISOString() }).in("id", toArchive.map((n: any) => n.id))
                 if (toUnarchive.length) await supabase.from("notes").update({ is_archived: false, updated_at: new Date().toISOString() }).in("id", toUnarchive.map((n: any) => n.id))
             }
+
+            // Sync attachments - supports Ctrl+Z by using soft delete
+            if (Array.isArray(content)) {
+                const activeAttachmentIds = extractAttachmentIds(content)
+                await syncAttachments(noteId, activeAttachmentIds)
+            }
         } catch (err) { console.error("Error saving note:", err) }
     }, [user, noteId])
+
+    // File upload handler - for paste and drag/drop
+    const handleFileUpload = useCallback(async (files: FileList | File[]) => {
+        if (!user || !noteId) return
+
+        const fileArray = Array.from(files)
+        for (const file of fileArray) {
+            // Validate file
+            if (!isAllowedFileType(file)) {
+                toast.error(`지원하지 않는 파일 형식입니다: ${file.name}`)
+                continue
+            }
+            if (!isFileSizeValid(file)) {
+                toast.error(`파일이 너무 큽니다 (최대 50MB): ${file.name}`)
+                continue
+            }
+
+            // Show uploading toast
+            const toastId = toast.loading(`업로드 중: ${file.name}`)
+
+            try {
+                const result = await uploadNoteAttachment({
+                    noteId,
+                    workspaceId,
+                    userId: user.id,
+                    file
+                })
+
+                if (result.success && result.attachment && result.url) {
+                    // Insert appropriate block
+                    const currentBlock = editor.getTextCursorPosition().block
+
+                    if (isImageFile(file)) {
+                        editor.insertBlocks([{
+                            type: "customImage",
+                            props: {
+                                attachmentId: result.attachment.id,
+                                url: result.url,
+                                caption: "",
+                                type: "image",
+                                fileName: file.name
+                            }
+                        } as any], currentBlock, "after")
+                    } else if (isVideoFile(file)) {
+                        editor.insertBlocks([{
+                            type: "customVideo",
+                            props: {
+                                attachmentId: result.attachment.id,
+                                url: result.url,
+                                caption: "",
+                                type: "video",
+                                fileName: file.name
+                            }
+                        } as any], currentBlock, "after")
+                    }
+
+                    toast.success(`업로드 완료: ${file.name}`, { id: toastId })
+                } else {
+                    toast.error(`업로드 실패: ${result.error}`, { id: toastId })
+                }
+            } catch (err) {
+                console.error("File upload error:", err)
+                toast.error(`업로드 실패: ${file.name}`, { id: toastId })
+            }
+        }
+    }, [user, noteId, workspaceId, editor])
+
+    // File input ref for slash menu
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [pendingFileType, setPendingFileType] = useState<"image" | "video" | null>(null)
+
+    const triggerFileUpload = useCallback((type: "image" | "video") => {
+        setPendingFileType(type)
+        if (fileInputRef.current) {
+            fileInputRef.current.accept = type === "image"
+                ? "image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                : "video/mp4,video/webm,video/quicktime"
+            fileInputRef.current.click()
+        }
+    }, [])
+
+    const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            handleFileUpload(e.target.files)
+        }
+        e.target.value = '' // Reset for next upload
+    }, [handleFileUpload])
 
     const insertPageBlock = useCallback((id: string, pageTitle: string) => {
         if (!editor) return
@@ -378,6 +486,15 @@ function CollaborativeEditor({
 
     return (
         <>
+            {/* Hidden file input for slash menu uploads */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileInputChange}
+                className="hidden"
+                multiple
+            />
+
             {collaborators.length > 1 && (
                 <div className="flex items-center justify-end mb-4">
                     <CollaboratorsBar collaborators={collaborators} currentUserId={currentUserId} />
@@ -394,7 +511,47 @@ function CollaborativeEditor({
                 />
             </div>
 
-            <div className="-mx-4 lg:-mx-12">
+            <div
+                className="-mx-4 lg:-mx-12"
+                onDrop={(e) => {
+                    // Handle file drops
+                    if (e.dataTransfer?.files?.length > 0) {
+                        const hasMedia = Array.from(e.dataTransfer.files).some(
+                            f => isImageFile(f) || isVideoFile(f)
+                        )
+                        if (hasMedia) {
+                            e.preventDefault()
+                            handleFileUpload(e.dataTransfer.files)
+                        }
+                    }
+                }}
+                onDragOver={(e) => {
+                    // Allow drops for files
+                    if (e.dataTransfer?.types?.includes('Files')) {
+                        e.preventDefault()
+                    }
+                }}
+                onPaste={(e) => {
+                    // Handle paste from clipboard
+                    const items = e.clipboardData?.items
+                    if (items) {
+                        const files: File[] = []
+                        for (let i = 0; i < items.length; i++) {
+                            const item = items[i]
+                            if (item.kind === 'file') {
+                                const file = item.getAsFile()
+                                if (file && (isImageFile(file) || isVideoFile(file))) {
+                                    files.push(file)
+                                }
+                            }
+                        }
+                        if (files.length > 0) {
+                            e.preventDefault()
+                            handleFileUpload(files)
+                        }
+                    }
+                }}
+            >
                 <BlockNoteView
                     editor={editor}
                     theme="dark"
@@ -407,25 +564,49 @@ function CollaborativeEditor({
                         getItems={async (query) => {
                             const defaultItems = getDefaultReactSlashMenuItems(editor);
 
-                            // Add "표" alias to the default Table item if it exists
-                            const itemsWithKorean = defaultItems.map(item => {
-                                if (item.title === "Table") {
-                                    return {
-                                        ...item,
-                                        aliases: [...(item.aliases || []), "table", "표", "td", "tr"]
-                                    };
-                                }
-                                return item;
-                            });
+                            // Filter out default Media group items entirely to use our custom ones
+                            // Also add "표" alias to the Table item
+                            const filteredItems = defaultItems
+                                .filter(item => item.group !== "Media")
+                                .map(item => {
+                                    if (item.title === "Table") {
+                                        return {
+                                            ...item,
+                                            aliases: [...(item.aliases || []), "table", "표", "td", "tr"]
+                                        };
+                                    }
+                                    return item;
+                                });
 
-                            return [...itemsWithKorean, {
-                                title: "Page",
-                                onItemClick: () => createSubPage(),
-                                aliases: ["page", "subpage", "nested", "페이지", "문서"],
-                                group: "Basic Blocks",
-                                icon: <NotebookTabs className="w-4 h-4" />,
-                                subtext: "Create a sub-page nested inside this one.",
-                            }].filter((item) =>
+                            // Custom media items with our upload handlers
+                            const customItems = [
+                                {
+                                    title: "Page",
+                                    onItemClick: () => createSubPage(),
+                                    aliases: ["page", "subpage", "nested", "페이지", "문서"],
+                                    group: "Basic Blocks",
+                                    icon: <NotebookTabs className="w-4 h-4" />,
+                                    subtext: "Create a sub-page nested inside this one.",
+                                },
+                                {
+                                    title: "Image",
+                                    onItemClick: () => triggerFileUpload("image"),
+                                    aliases: ["image", "img", "photo", "picture", "이미지", "사진", "그림"],
+                                    group: "Media",
+                                    icon: <ImageIcon className="w-4 h-4" />,
+                                    subtext: "Upload an image from your device.",
+                                },
+                                {
+                                    title: "Video",
+                                    onItemClick: () => triggerFileUpload("video"),
+                                    aliases: ["video", "movie", "영상", "동영상", "비디오"],
+                                    group: "Media",
+                                    icon: <Film className="w-4 h-4" />,
+                                    subtext: "Upload a video from your device.",
+                                },
+                            ];
+
+                            return [...filteredItems, ...customItems].filter((item) =>
                                 item.title.toLowerCase().startsWith(query.toLowerCase()) ||
                                 item.aliases?.some((alias) => alias.toLowerCase().startsWith(query.toLowerCase()))
                             )
@@ -445,7 +626,7 @@ export default function NotionEditor({
     workspaceId,
     onTitleChange
 }: NotionEditorProps) {
-    const { user, profileName } = useAuth()
+    const { user, profileName, presenceColor } = useAuth()
     const [title, setTitle] = useState(initialTitle || "")
     const [isReady, setIsReady] = useState(false)
 
@@ -457,9 +638,9 @@ export default function NotionEditor({
         return {
             id: user.id,
             name: profileName || user.email?.split("@")[0] || "Anonymous",
-            color: getUserColor(user.id)
+            color: presenceColor || getUserColor(user.id)
         }
-    }, [user, profileName])
+    }, [user, profileName, presenceColor])
 
     // Setup Supabase provider
     useEffect(() => {

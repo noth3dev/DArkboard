@@ -20,6 +20,8 @@ type AuthContextType = {
   phone: string | null
   /** public.users.role */
   role: string | null
+  /** public.users.presence_color */
+  presenceColor: string | null
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [nameEng, setNameEng] = useState<string | null>(null)
   const [phone, setPhone] = useState<string | null>(null)
   const [role, setRole] = useState<string | null>(null)
+  const [presenceColor, setPresenceColor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setNameEng(null)
         setPhone(null)
         setRole(null)
+        setPresenceColor(null)
         setLoading(false)
         return
       }
@@ -60,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // public.users 테이블에서 access_level, name, display_name, name_eng, phone, role 조회
         const { data, error } = await supabase
           .from("users")
-          .select("access_level, name, display_name, name_eng, phone, role")
+          .select("access_level, name, display_name, name_eng, phone, role, presence_color")
           .eq("user_uuid", sessionUser.id)
           .single()
 
@@ -73,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setNameEng(null)
           setPhone(null)
           setRole(null)
+          setPresenceColor(null)
         } else {
           setAccessLevel(typeof data?.access_level === "number" ? data.access_level : 0)
           setProfileName(data?.name ?? null)
@@ -80,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setNameEng(data?.name_eng ?? null)
           setPhone(data?.phone ?? null)
           setRole(data?.role ?? null)
+          setPresenceColor(data?.presence_color ?? null)
         }
       } catch (err) {
         console.error("Unexpected error fetching access_level:", err)
@@ -89,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setNameEng(null)
         setPhone(null)
         setRole(null)
+        setPresenceColor(null)
       } finally {
         setLoading(false)
       }
@@ -109,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setNameEng(null)
         setPhone(null)
         setRole(null)
+        setPresenceColor(null)
         setLoading(false)
       })
 
@@ -151,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNameEng(null)
     setPhone(null)
     setRole(null)
+    setPresenceColor(null)
   }
 
   return (
@@ -164,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nameEng,
         phone,
         role,
+        presenceColor,
         signIn,
         signUp,
         signOut,

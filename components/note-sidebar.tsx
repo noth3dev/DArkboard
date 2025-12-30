@@ -144,6 +144,7 @@ type NoteTreeItemProps = {
     onSelect: (id: string) => void
     onDelete: (id: string, e: React.MouseEvent) => void
     onCreateSubPage: (parentId: string, e: React.MouseEvent) => void
+    memberProfiles: Record<string, { name: string, color: string }>
 }
 
 export const NoteItem = ({
@@ -154,7 +155,8 @@ export const NoteItem = ({
     presenceStates,
     onSelect,
     onDelete,
-    onCreateSubPage
+    onCreateSubPage,
+    memberProfiles
 }: NoteTreeItemProps) => {
     const [isOpen, setIsOpen] = useState(true)
     const childNotes = allNotes.filter(n => n.parent_id === note.id)
@@ -200,10 +202,27 @@ export const NoteItem = ({
                         {presenceStates[note.id].map((presenceUser, idx) => (
                             <div
                                 key={`${presenceUser.userId}-${idx}`}
-                                className="w-2 h-2 rounded-full border border-black"
-                                style={{ backgroundColor: presenceUser.color }}
-                                title={presenceUser.name}
-                            />
+                                className="relative group/tooltip"
+                            >
+                                <div
+                                    className="w-2.5 h-2.5 rounded-full border border-black shadow-sm ring-1 ring-white/10"
+                                    style={{ backgroundColor: memberProfiles[presenceUser.userId]?.color || presenceUser.color }}
+                                />
+                                {/* Custom Tooltip - Positioned to the left to avoid clipping */}
+                                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 text-white text-[11px] font-bold rounded-lg shadow-2xl opacity-0 group-hover/tooltip:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-[100] translate-x-1 group-hover/tooltip:translate-x-0 flex items-center min-w-fit">
+                                    <div className="flex items-center gap-2">
+                                        <div
+                                            className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                                            style={{ backgroundColor: memberProfiles[presenceUser.userId]?.color || presenceUser.color }}
+                                        />
+                                        <span className="tracking-tight">
+                                            {memberProfiles[presenceUser.userId]?.name || presenceUser.name}
+                                        </span>
+                                    </div>
+                                    {/* Arrow pointing right */}
+                                    <div className="absolute left-full top-1/2 -translate-y-1/2 border-y-[5px] border-y-transparent border-l-[5px] border-l-neutral-950" />
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -245,6 +264,7 @@ export const NoteItem = ({
                             onSelect={onSelect}
                             onDelete={onDelete}
                             onCreateSubPage={onCreateSubPage}
+                            memberProfiles={memberProfiles}
                         />
                     ))}
                 </div>
@@ -261,7 +281,7 @@ type NoteSidebarProps = {
 }
 
 export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceId, onWorkspaceChange }: NoteSidebarProps) {
-    const { user, profileName } = useAuth()
+    const { user, profileName, presenceColor } = useAuth()
     const router = useRouter()
     const params = useParams()
     const currentNoteId = params.noteId as string
@@ -278,6 +298,7 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
     const [editingWorkspace, setEditingWorkspace] = useState<string | null>(null)
     const [editWorkspaceName, setEditWorkspaceName] = useState("")
     const [presenceStates, setPresenceStates] = useState<Record<string, { userId: string, name: string, color: string }[]>>({})
+    const [memberProfiles, setMemberProfiles] = useState<Record<string, { name: string, color: string }>>({})
     const channelRef = useRef<any>(null)
     const presenceChannelRef = useRef<any>(null)
 
@@ -360,7 +381,47 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
         } catch (err) {
             console.error("Error fetching workspaces:", err)
         }
-    }, [user, profileName])
+    }, [user, profileName, currentWorkspace, onWorkspaceChange])
+
+    const fetchMemberProfiles = useCallback(async () => {
+        if (!currentWorkspace) return
+        try {
+            const supabase = getSupabase()
+            // 1. Fetch member user IDs
+            const { data: memberData, error: memberError } = await supabase
+                .from("note_workspace_members")
+                .select("user_id")
+                .eq("workspace_id", currentWorkspace.id)
+
+            if (memberError) throw memberError
+            if (!memberData?.length) return
+
+            const userIds = memberData.map((m: { user_id: string }) => m.user_id)
+
+            // 2. Fetch user profiles from public.users
+            const { data: userData, error: userError } = await supabase
+                .from("users")
+                .select("user_uuid, name, presence_color")
+                .in("user_uuid", userIds)
+
+            if (userError) throw userError
+
+            const profiles: Record<string, { name: string, color: string }> = {}
+            userData?.forEach((u: any) => {
+                profiles[u.user_uuid] = {
+                    name: u.name || "Anonymous",
+                    color: u.presence_color || getUserColor(u.user_uuid)
+                }
+            })
+            setMemberProfiles(profiles)
+        } catch (err) {
+            console.error("Error fetching member profiles:", err)
+        }
+    }, [currentWorkspace])
+
+    useEffect(() => {
+        fetchMemberProfiles()
+    }, [fetchMemberProfiles])
 
     const fetchNotes = useCallback(async () => {
         if (!user || !currentWorkspace) return
@@ -415,7 +476,7 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
             setIsLoading(true)
             fetchNotes()
         }
-    }, [currentWorkspace, fetchNotes])
+    }, [currentWorkspace, fetchNotes, user])
 
     // Fetch workspace counts when menu opens
     const fetchWorkspaceCounts = useCallback(async () => {
@@ -569,7 +630,7 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
                     await channel.track({
                         userId: user.id,
                         name: profileName || user.email?.split("@")[0] || "Anonymous",
-                        color: getUserColor(user.id),
+                        color: presenceColor || getUserColor(user.id),
                         noteId: currentNoteId
                     })
                 }
@@ -580,7 +641,7 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
             presenceChannelRef.current = null
             setPresenceStates({})
         }
-    }, [user, currentWorkspace, currentNoteId, profileName])
+    }, [user, currentWorkspace, currentNoteId, profileName, presenceColor])
 
 
     // Realtime subscription for workspaces and members
@@ -682,6 +743,7 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
 
             setNotes(prev => [...prev, data])
             router.push(`/note/${data.id}`)
+            if (window.innerWidth < 1024) onToggle()
             toast.success(parentId ? "하위 페이지가 생성되었습니다." : "새 노트가 생성되었습니다.")
         } catch (err) {
             console.error("Error creating note:", err)
@@ -949,6 +1011,7 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
                                 }}
                                 onDelete={deleteNote}
                                 onCreateSubPage={(parentId) => createNote(parentId)}
+                                memberProfiles={memberProfiles}
                             />
                         ))}
                     </div>
@@ -1065,6 +1128,7 @@ export function NoteSidebar({ isCollapsed, onToggle, workspaceId: propWorkspaceI
                                                             } else {
                                                                 router.push("/note")
                                                             }
+                                                            if (window.innerWidth < 1024) onToggle()
                                                         }}
                                                     >
                                                         <WsIcon className="w-4 h-4" style={{ color: ws.color }} />

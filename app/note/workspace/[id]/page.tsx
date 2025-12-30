@@ -74,6 +74,7 @@ type WorkspaceMember = {
     workspace_id: string
     user_id: string
     role: 'owner' | 'editor' | 'viewer'
+    color: string | null
     user?: {
         name: string | null
         email: string
@@ -129,6 +130,11 @@ const WORKSPACE_COLORS = [
     "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#06B6D4",
 ]
 
+const PRESENCE_COLORS = [
+    "#E91E63", "#2196F3", "#4CAF50", "#FF9800", "#9C27B0",
+    "#00BCD4", "#FF5722", "#607D8B", "#3F51B5", "#009688",
+]
+
 const ROLE_CONFIG = {
     owner: { label: '소유자', icon: Crown, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
     editor: { label: '편집자', icon: Edit3, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
@@ -141,7 +147,7 @@ function getIconComponent(iconName: string) {
 }
 
 export default function WorkspaceDetailPage() {
-    const { user, loading: authLoading, accessLevel } = useAuth()
+    const { user, loading: authLoading, accessLevel, profileName, presenceColor } = useAuth()
     const router = useRouter()
     const params = useParams()
     const workspaceId = params.id as string
@@ -215,7 +221,7 @@ export default function WorkspaceDetailPage() {
             const supabase = getSupabase()
             const { data, error } = await supabase
                 .from("note_workspace_members")
-                .select("*")
+                .select("id, workspace_id, user_id, role, color, created_at")
                 .eq("workspace_id", workspaceId)
                 .order("created_at", { ascending: true })
 
@@ -225,16 +231,20 @@ export default function WorkspaceDetailPage() {
                 const userIds = data.map((m: WorkspaceMember) => m.user_id)
                 const { data: usersData } = await supabase
                     .from("users")
-                    .select("user_uuid, name")
+                    .select("user_uuid, name, presence_color")
                     .in("user_uuid", userIds)
 
-                const membersWithUsers = data.map((member: WorkspaceMember) => ({
-                    ...member,
-                    user: {
-                        name: usersData?.find((u: UserInfo) => u.user_uuid === member.user_id)?.name || null,
-                        email: member.user_id
+                const membersWithUsers = data.map((member: WorkspaceMember) => {
+                    const userData = usersData?.find((u: any) => u.user_uuid === member.user_id)
+                    return {
+                        ...member,
+                        user: {
+                            name: userData?.name || null,
+                            email: member.user_id,
+                            presence_color: userData?.presence_color || null
+                        }
                     }
-                }))
+                })
                 setMembers(membersWithUsers)
             } else {
                 setMembers([])
@@ -382,6 +392,50 @@ export default function WorkspaceDetailPage() {
         } catch (err) {
             console.error("Error updating workspace:", err)
             toast.error("워크스페이스 수정 중 오류가 발생했습니다.")
+        }
+    }
+
+    const updateMyColor = async (color: string) => {
+        if (!workspaceId || !user) return
+        try {
+            const supabase = getSupabase()
+
+            // Check if member record exists (owners might not have one in some setups, but let's assume they do or we create it)
+            const { data: member } = await supabase
+                .from("note_workspace_members")
+                .select("id")
+                .eq("workspace_id", workspaceId)
+                .eq("user_id", user.id)
+                .maybeSingle()
+
+            if (member) {
+                const { error } = await supabase
+                    .from("note_workspace_members")
+                    .update({ color })
+                    .eq("id", member.id)
+
+                if (error) throw error
+            } else if (isOwner) {
+                // For owner who might not be in members table explicitly (legacy)
+                // But our setup adds owner to members. If not, we just ignore for now or add them.
+                const { error } = await supabase
+                    .from("note_workspace_members")
+                    .insert({
+                        workspace_id: workspaceId,
+                        user_id: user.id,
+                        role: 'owner',
+                        color
+                    })
+                if (error) throw error
+            }
+
+            setMembers(prev => prev.map(m =>
+                m.user_id === user.id ? { ...m, color } : m
+            ))
+            toast.success("활동 색상이 변경되었습니다.")
+        } catch (err) {
+            console.error("Error updating color:", err)
+            toast.error("색상 변경 중 오류가 발생했습니다.")
         }
     }
 
@@ -621,6 +675,9 @@ export default function WorkspaceDetailPage() {
                     </div>
                 </section>
 
+
+
+
                 {/* Members Section */}
                 <section className="space-y-4">
                     <h2 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-1 flex items-center gap-2">
@@ -630,18 +687,27 @@ export default function WorkspaceDetailPage() {
 
                     <div className="p-6 rounded-2xl border border-neutral-900 bg-neutral-900/30 space-y-4">
                         {/* Owner */}
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-neutral-800/50">
-                            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                                <Crown className="w-5 h-5 text-amber-400" />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-sm font-medium">{isOwner ? "나 (소유자)" : "소유자"}</p>
-                                <p className="text-xs text-neutral-500">모든 권한</p>
-                            </div>
-                            <span className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 text-[10px] font-bold uppercase">
-                                Owner
-                            </span>
-                        </div>
+                        {(() => {
+                            const ownerMember = members.find(m => m.user_id === workspace?.user_id)
+                            const avatarColor = (ownerMember as any)?.user?.presence_color || ownerMember?.color || '#F59E0B' // amber-500 fallback
+                            return (
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-neutral-800/50">
+                                    <div
+                                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                                        style={{ backgroundColor: avatarColor }}
+                                    >
+                                        <Crown className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium">{isOwner ? "나 (소유자)" : "소유자"}</p>
+                                        <p className="text-xs text-neutral-500">모든 권한</p>
+                                    </div>
+                                    <span className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 text-[10px] font-bold uppercase">
+                                        Owner
+                                    </span>
+                                </div>
+                            )
+                        })()}
 
                         {/* Members List */}
                         {isLoadingMembers ? (
@@ -656,8 +722,11 @@ export default function WorkspaceDetailPage() {
 
                                     return (
                                         <div key={member.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-800/30 group">
-                                            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center", roleConfig.bgColor)}>
-                                                <RoleIcon className={cn("w-5 h-5", roleConfig.color)} />
+                                            <div
+                                                className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                                                style={{ backgroundColor: (member as any).user?.presence_color || member.color || (member.role === 'editor' ? '#3B82F6' : '#6B7280') }}
+                                            >
+                                                <RoleIcon className="w-5 h-5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-medium truncate">

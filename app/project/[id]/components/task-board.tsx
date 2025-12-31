@@ -30,7 +30,7 @@ export function TaskBoard({
         description: "",
         status: "todo" as Task["status"],
         priority: "medium" as Task["priority"],
-        assignee_uuid: "",
+        assignee_uuids: [] as string[],
         due_date: "",
     })
     const [calendarDate, setCalendarDate] = useState(new Date())
@@ -97,7 +97,7 @@ export function TaskBoard({
 
     async function handleAddTaskSubmit(status?: Task["status"]) {
         await onAddTask({ ...newTask, status: status || newTask.status })
-        setNewTask({ title: "", description: "", status: "todo", priority: "medium", assignee_uuid: "", due_date: "" })
+        setNewTask({ title: "", description: "", status: "todo", priority: "medium", assignee_uuids: [], due_date: "" })
         setShowAddTask(false)
         setAddingToStatus(null)
     }
@@ -164,13 +164,19 @@ export function TaskBoard({
                         {!compact && task.description && (
                             <p className="text-xs text-neutral-500 mt-1 line-clamp-1">{task.description}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-neutral-600">
-                            {task.assignee && (
-                                <span className="flex items-center gap-1">
-                                    <div className="w-4 h-4 rounded-full bg-neutral-700 flex items-center justify-center text-[8px] font-bold text-neutral-300">
-                                        {(task.assignee.name || "?")[0]}
-                                    </div>
-                                </span>
+                        <div className="flex items-center gap-1 mt-1.5 text-[10px] text-neutral-600">
+                            {task.assignees && task.assignees.length > 0 && (
+                                <div className="flex -space-x-1.5 overflow-hidden mr-1">
+                                    {task.assignees.map((assignee, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="w-4 h-4 rounded-full bg-neutral-800 border-2 border-neutral-950 flex items-center justify-center text-[7px] font-bold text-neutral-300"
+                                            title={assignee.name || 'Unknown'}
+                                        >
+                                            {(assignee.name || "?")[0]}
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                             {taskDdayText && (
                                 <span className={`px-1 py-0.5 rounded ${taskDday !== null && taskDday < 0 ? "bg-red-900/30 text-red-400" : taskDday === 0 ? "bg-yellow-900/30 text-yellow-400" : "bg-neutral-800 text-neutral-400"
@@ -226,10 +232,49 @@ export function TaskBoard({
                                 <select value={newTask.priority} onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as Task["priority"] })} className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white text-sm">
                                     <option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option><option value="urgent">긴급</option>
                                 </select>
-                                <select value={newTask.assignee_uuid} onChange={(e) => setNewTask({ ...newTask, assignee_uuid: e.target.value })} className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white text-sm">
-                                    <option value="">담당자 없음</option>
-                                    {members.map((m) => <option key={m.user_uuid} value={m.user_uuid}>{m.name || m.name_eng || 'Unknown'}</option>)}
-                                </select>
+                                <div className="col-span-2 md:col-span-1 relative">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            const select = e.currentTarget.nextElementSibling as HTMLSelectElement
+                                            select.focus()
+                                        }}
+                                        className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-md text-white text-sm text-left truncate"
+                                    >
+                                        {newTask.assignee_uuids.length === 0 ? "담당자 선택" : `${newTask.assignee_uuids.length}명 선택됨`}
+                                    </button>
+                                    <select
+                                        multiple
+                                        value={newTask.assignee_uuids}
+                                        onChange={(e) => {
+                                            const values = Array.from(e.target.selectedOptions, option => option.value)
+                                            setNewTask({ ...newTask, assignee_uuids: values })
+                                        }}
+                                        className="absolute top-full left-0 w-full mt-1 bg-neutral-900 border border-neutral-800 rounded-md text-white text-sm z-10 p-1 focus:outline-none"
+                                        style={{ display: 'none' }} // Actually we should probably use a proper multi-select UI
+                                    />
+                                    {/* Using a simple checkbox list instead for better UX */}
+                                    <div className="mt-2 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 border border-neutral-800 rounded-md bg-black">
+                                        {members.map((m) => {
+                                            const isSelected = newTask.assignee_uuids.includes(m.user_uuid)
+                                            return (
+                                                <button
+                                                    key={m.user_uuid}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const uuids = isSelected
+                                                            ? newTask.assignee_uuids.filter(id => id !== m.user_uuid)
+                                                            : [...newTask.assignee_uuids, m.user_uuid]
+                                                        setNewTask({ ...newTask, assignee_uuids: uuids })
+                                                    }}
+                                                    className={`px-2 py-1 rounded text-[10px] transition-colors ${isSelected ? "bg-white text-black font-medium" : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"}`}
+                                                >
+                                                    {m.name || m.name_eng || 'Unknown'}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
                                 <input type="date" value={newTask.due_date} onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })} className="px-3 py-2 bg-black border border-neutral-800 rounded-md text-white text-sm" />
                             </div>
                             <div className="flex gap-2 justify-end">

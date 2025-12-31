@@ -27,10 +27,12 @@ export type Task = {
     description: string | null
     status: "todo" | "in_progress" | "review" | "done"
     priority: "low" | "medium" | "high" | "urgent"
-    assignee_uuid: string | null
+    assignee_uuid: string | null // For backward compatibility
+    assignee_uuids?: string[]
     due_date: string | null
     sort_order: number
-    assignee?: TeamMember
+    assignee?: TeamMember // Primary assignee for UI backward compatibility
+    assignees?: TeamMember[]
 }
 
 export type Project = {

@@ -118,16 +118,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             const supabase = getSupabase()
             const { data, error } = await supabase
                 .from("project_tasks")
-                .select(`*, assignee:users(user_uuid, name, name_eng)`)
+                .select(`
+                    *,
+                    assignees:project_task_assignees(
+                        user:users(user_uuid, name, name_eng)
+                    )
+                `)
                 .eq("project_id", id)
                 .order("sort_order", { ascending: true })
                 .order("created_at", { ascending: false })
 
             if (error) throw error
             setTasks(
-                (data || []).map((t: Task & { assignee: TeamMember | TeamMember[] }) => ({
+                (data || []).map((t: any) => ({
                     ...t,
-                    assignee: Array.isArray(t.assignee) ? t.assignee[0] : t.assignee,
+                    assignees: (t.assignees || []).map((a: any) => a.user),
+                    assignee: t.assignees?.[0]?.user || null // Keep for fallback
                 }))
             )
         } catch (err) {
@@ -310,28 +316,43 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
         try {
             const supabase = getSupabase()
-            const { error } = await supabase.from("project_tasks").insert({
+            const { data: taskData, error: taskError } = await supabase.from("project_tasks").insert({
                 project_id: id,
                 title: newTask.title.trim(),
                 description: newTask.description.trim() || null,
                 status: newTask.status,
                 priority: newTask.priority,
-                assignee_uuid: newTask.assignee_uuid || null,
                 due_date: newTask.due_date || null,
-            })
-            if (error) throw error
+                assignee_uuid: newTask.assignee_uuids?.[0] || null, // Fallback for legacy
+            }).select().single()
 
-            if (newTask.assignee_uuid && newTask.assignee_uuid !== user?.id) {
-                createNotification(
-                    newTask.assignee_uuid,
-                    "task_assigned",
-                    `'${project?.name}' 프로젝트에서 새로운 태스크 '${newTask.title}'이(가) 할당되었습니다.`
-                )
+            if (taskError) throw taskError
+
+            if (newTask.assignee_uuids && newTask.assignee_uuids.length > 0) {
+                const assigneeInserts = newTask.assignee_uuids.map((uuid: string) => ({
+                    task_id: taskData.id,
+                    user_uuid: uuid
+                }))
+
+                const { error: assigneeError } = await supabase.from("project_task_assignees").insert(assigneeInserts)
+                if (assigneeError) throw assigneeError
+
+                newTask.assignee_uuids.forEach((uuid: string) => {
+                    if (uuid !== user?.id) {
+                        createNotification(
+                            uuid,
+                            "task_assigned",
+                            `'${project?.name}' 프로젝트에서 새로운 태스크 '${newTask.title}'이(가) 할당되었습니다.`,
+                            taskData.id
+                        )
+                    }
+                })
             }
 
             fetchTasks()
         } catch (err) {
             console.error("Error adding task:", err)
+            toast.error("태스크 추가 중 오류가 발생했습니다.")
         }
     }
 
@@ -343,12 +364,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             if (error) throw error
 
             const task = tasks.find(t => t.id === taskId)
-            if (task && task.assignee_uuid && task.assignee_uuid !== user?.id) {
-                createNotification(
-                    task.assignee_uuid,
-                    "status_changed",
-                    `과제 '${task.title}'의 상태가 '${taskStatusConfig[newStatus].label}'(으)로 변경되었습니다.`
-                )
+            if (task && task.assignees && task.assignees.length > 0) {
+                task.assignees.forEach(assignee => {
+                    if (assignee.user_uuid !== user?.id) {
+                        createNotification(
+                            assignee.user_uuid,
+                            "status_changed",
+                            `과제 '${task.title}'의 상태가 '${taskStatusConfig[newStatus].label}'(으)로 변경되었습니다.`,
+                            taskId
+                        )
+                    }
+                })
             }
 
             fetchTasks()

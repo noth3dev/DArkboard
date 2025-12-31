@@ -324,9 +324,45 @@ function CollaborativeEditor({
         // Initial update after a small delay to avoid render-time updates
         const timeout = setTimeout(updateCollaborators, 100)
 
+        // Clipboard cleanup for BlockNote backslash issue
+        // BlockNote (Prosemirror) adds backslashes for hard breaks in its markdown serializer
+        // which often ends up in the plain text clipboard. We clean this up.
+        const handleCopy = (e: ClipboardEvent) => {
+            const selection = window.getSelection();
+            if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+
+            const anchor = selection.anchorNode;
+            const isInside = anchor instanceof HTMLElement
+                ? anchor.closest('.bn-editor')
+                : anchor?.parentElement?.closest('.bn-editor');
+
+            if (isInside) {
+                // Get plain text and HTML from selection
+                const text = selection.toString();
+                // Clean up backslashes that are likely markdown escapes for hard breaks
+                // Replace backslash + newline with just newline, and trailing backslash
+                const cleanedText = text.replace(/\\\n/g, '\n').replace(/\\$/g, '');
+
+                const range = selection.getRangeAt(0);
+                const container = document.createElement("div");
+                container.appendChild(range.cloneContents());
+                const html = container.innerHTML;
+
+                // Override clipboard data
+                e.preventDefault();
+                if (e.clipboardData) {
+                    e.clipboardData.setData('text/plain', cleanedText);
+                    e.clipboardData.setData('text/html', html);
+                }
+            }
+        };
+
+        document.addEventListener('copy', handleCopy);
+
         return () => {
             clearTimeout(timeout)
             provider.awareness.off('change', updateCollaborators)
+            document.removeEventListener('copy', handleCopy)
         }
     }, [provider])
 

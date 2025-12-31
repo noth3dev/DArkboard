@@ -215,6 +215,12 @@ function CollaborativeEditor({
     const [hasLocalBackup, setHasLocalBackup] = useState(false)
     const [backupData, setBackupData] = useState<{ content: any, title: string, timestamp: number } | null>(null)
 
+    // Character counter state
+    const [includeWhitespace, setIncludeWhitespace] = useState(true)
+    const [totalCount, setTotalCount] = useState(0)
+    const [selectedCount, setSelectedCount] = useState(0)
+    const [showCounterOptions, setShowCounterOptions] = useState(false)
+
     const schema = useMemo(() => {
         const NoteBlockSpec = createReactBlockSpec(
             { type: "note", propSchema: { noteId: { default: "" }, title: { default: "Untitled" } }, content: "none" },
@@ -554,6 +560,76 @@ function CollaborativeEditor({
         window.dispatchEvent(new CustomEvent('note:title-change', { detail: { id: noteId, title: newTitle } }))
     }
 
+    // Character counting logic
+    const getTextFromBlocks = useCallback((blocks: any[]): string => {
+        let text = ""
+        for (const block of blocks) {
+            if (block.content && Array.isArray(block.content)) {
+                for (const content of block.content) {
+                    if (content.type === "text") {
+                        text += content.text
+                    }
+                }
+            }
+            if (block.type === "table") {
+                const tableContent = block.props?.content
+                if (tableContent && typeof tableContent === "object") {
+                    const rows = Object.values(tableContent)
+                    for (const row of rows) {
+                        if (Array.isArray(row)) {
+                            for (const cell of row) {
+                                text += getTextFromBlocks(cell)
+                            }
+                        }
+                    }
+                }
+            }
+            if (block.children && block.children.length > 0) {
+                text += getTextFromBlocks(block.children)
+            }
+            // Add a newline after each block except the last one (approximate)
+            text += "\n"
+        }
+        return text
+    }, [])
+
+    useEffect(() => {
+        if (!editor) return
+
+        const updateCounts = () => {
+            const fullText = getTextFromBlocks(editor.document)
+            const selection = window.getSelection()?.toString() || ""
+
+            if (includeWhitespace) {
+                setTotalCount(fullText.trim().length)
+                setSelectedCount(selection.length)
+            } else {
+                setTotalCount(fullText.replace(/\s/g, "").length)
+                setSelectedCount(selection.replace(/\s/g, "").length)
+            }
+        }
+
+        // Initial update
+        updateCounts()
+
+        // Handle document changes
+        const unbind = editor.onChange(() => {
+            updateCounts()
+        })
+
+        // Handle selection changes
+        const onSelectionChange = () => {
+            updateCounts()
+        }
+
+        document.addEventListener("selectionchange", onSelectionChange)
+
+        return () => {
+            unbind()
+            document.removeEventListener("selectionchange", onSelectionChange)
+        }
+    }, [editor, getTextFromBlocks, includeWhitespace])
+
     return (
         <>
             {/* Hidden file input for slash menu uploads */}
@@ -717,6 +793,41 @@ function CollaborativeEditor({
                         }
                     />
                 </BlockNoteView>
+            </div>
+
+            {/* Character Counter UI */}
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
+                {showCounterOptions && (
+                    <div className="bg-neutral-900/80 backdrop-blur-xl border border-neutral-800 rounded-full px-1 py-1 flex items-center gap-1 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+                        <button
+                            onClick={() => { setIncludeWhitespace(true); setShowCounterOptions(false); }}
+                            className={`px-3 py-1 text-[10px] font-bold rounded-full transition-all ${includeWhitespace ? "bg-neutral-100 text-black" : "text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"}`}
+                        >
+                            공백 포함
+                        </button>
+                        <button
+                            onClick={() => { setIncludeWhitespace(false); setShowCounterOptions(false); }}
+                            className={`px-3 py-1 text-[10px] font-bold rounded-full transition-all ${!includeWhitespace ? "bg-neutral-100 text-black" : "text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"}`}
+                        >
+                            공백 제외
+                        </button>
+                    </div>
+                )}
+
+                <button
+                    onClick={() => setShowCounterOptions(!showCounterOptions)}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-neutral-900/60 backdrop-blur-md border border-neutral-800/50 rounded-full shadow-lg hover:bg-neutral-900/80 transition-all group"
+                >
+                    <div className="flex items-center gap-1 text-[13px] font-medium font-mono">
+                        {selectedCount > 0 && (
+                            <>
+                                <span className="text-white drop-shadow-sm">{selectedCount.toLocaleString()}</span>
+                                <span className="text-neutral-600">/</span>
+                            </>
+                        )}
+                        <span className="text-neutral-500 group-hover:text-neutral-400 transition-colors">{totalCount.toLocaleString()}</span>
+                    </div>
+                </button>
             </div>
         </>
     )

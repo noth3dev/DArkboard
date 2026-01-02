@@ -32,6 +32,11 @@ import {
 
 type FilterType = "all" | "income" | "expense"
 
+type Project = {
+  id: string
+  name: string
+}
+
 export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
   const router = useRouter()
   const { user, signOut, accessLevel } = useAuth()
@@ -45,6 +50,7 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
     user_id: "",
     type: "expense" as "income" | "expense",
     description: "",
+    project_id: "",
   })
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -53,16 +59,31 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
     user_id: "",
     type: "expense" as "income" | "expense",
     description: "",
+    project_id: "",
   })
+  const [projects, setProjects] = useState<Project[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
 
   const [filterType, setFilterType] = useState<FilterType>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [userFilter, setUserFilter] = useState("")
+  const [projectFilter, setProjectFilter] = useState("")
 
   useEffect(() => {
     fetchExpenses()
+    fetchProjects()
   }, [])
+
+  async function fetchProjects() {
+    try {
+      const supabase = getSupabase()
+      const { data, error } = await supabase.from("projects").select("id, name").order("name")
+      if (error) throw error
+      setProjects(data || [])
+    } catch (err) {
+      console.error("Error fetching projects:", err)
+    }
+  }
 
   async function fetchExpenses() {
     try {
@@ -93,6 +114,7 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
         user_id: newExpense.user_id || null,
         type: newExpense.type,
         description: newExpense.description || null,
+        project_id: newExpense.project_id || null,
       })
 
       if (error) throw error
@@ -103,6 +125,7 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
         user_id: "",
         type: "expense",
         description: "",
+        project_id: "",
       })
       setShowAddForm(false)
       fetchExpenses()
@@ -128,6 +151,7 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
           user_id: editForm.user_id || null,
           type: editForm.type,
           description: editForm.description || null,
+          project_id: editForm.project_id || null,
         })
         .eq("id", id)
 
@@ -167,6 +191,7 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
       user_id: expense.user_id || "",
       type: expense.type || "expense",
       description: expense.description || "",
+      project_id: expense.project_id || "",
     })
   }
 
@@ -177,7 +202,8 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
       expense.item.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.description?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesUser = !userFilter || userFilter === "all" || expense.user_id?.toLowerCase().includes(userFilter.toLowerCase())
-    return matchesType && matchesSearch && matchesUser
+    const matchesProject = !projectFilter || projectFilter === "all" || expense.project_id === projectFilter
+    return matchesType && matchesSearch && matchesUser && matchesProject
   })
 
   const totalIncome = filteredExpenses.filter((e) => e.type === "income").reduce((sum, e) => sum + Number(e.amount), 0)
@@ -194,19 +220,20 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
   }
 
   function exportToExcel() {
-    const headers = ["날짜", "항목", "유형", "금액", "사용자", "설명"]
+    const headers = ["날짜", "항목", "프로젝트", "유형", "금액", "사용자", "설명"]
     const rows = filteredExpenses.map((expense) => [
       expense.date,
       expense.item,
+      projects.find(p => p.id === expense.project_id)?.name || "",
       expense.type === "income" ? "수입" : "지출",
       expense.amount.toString(),
       expense.user_id || "",
       expense.description || "",
     ])
 
-    rows.push(["", "", "수입 합계", totalIncome.toString(), "", ""])
-    rows.push(["", "", "지출 합계", totalExpense.toString(), "", ""])
-    rows.push(["", "", "순 합계", netTotal.toString(), "", ""])
+    rows.push(["", "", "", "수입 합계", totalIncome.toString(), "", ""])
+    rows.push(["", "", "", "지출 합계", totalExpense.toString(), "", ""])
+    rows.push(["", "", "", "순 합계", netTotal.toString(), "", ""])
 
     const BOM = "\uFEFF"
     const csvContent =
@@ -339,6 +366,22 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
                 {uniqueUsers.map((user) => (
                   <SelectItem key={user} value={user || ""}>
                     {user}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="relative w-full sm:w-auto">
+            <Folder className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+            <Select value={projectFilter} onValueChange={setProjectFilter}>
+              <SelectTrigger className="w-full sm:w-auto pl-10 pr-8 bg-neutral-950 border-neutral-800 min-w-[140px]">
+                <SelectValue placeholder="모든 프로젝트" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">모든 프로젝트</SelectItem>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -503,6 +546,22 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
                     </div>
 
                     <div className="space-y-2">
+                      <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">프로젝트</label>
+                      <select
+                        value={newExpense.project_id}
+                        onChange={(e) => setNewExpense({ ...newExpense, project_id: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-neutral-900/30 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white transition-all font-bold appearance-none [color-scheme:dark]"
+                      >
+                        <option value="">프로젝트 선택 안함</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
                       <label className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold ml-1">상세 설명 (선택 사항)</label>
                       <textarea
                         placeholder="상세 내용을 적어주세요"
@@ -548,6 +607,9 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
                   <th className="px-6 py-4 text-left text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
                     항목
                   </th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+                    프로젝트
+                  </th>
                   <th className="px-6 py-4 text-center text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
                     유형
                   </th>
@@ -565,7 +627,7 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
               <tbody className="divide-y divide-neutral-900">
                 {filteredExpenses.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-20 text-center text-neutral-600 font-bold uppercase tracking-widest text-[10px]">
+                    <td colSpan={7} className="px-6 py-20 text-center text-neutral-600 font-bold uppercase tracking-widest text-[10px]">
                       기록된 내역이 없습니다
                     </td>
                   </tr>
@@ -589,6 +651,20 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
                               onChange={(e) => setEditForm({ ...editForm, item: e.target.value })}
                               className="w-full px-2 py-1.5 bg-black border border-neutral-700 rounded-lg text-white text-xs focus:outline-none focus:border-white transition-all font-bold"
                             />
+                          </td>
+                          <td className="px-6 py-4">
+                            <select
+                              value={editForm.project_id}
+                              onChange={(e) => setEditForm({ ...editForm, project_id: e.target.value })}
+                              className="w-full px-1 py-1.5 bg-black border border-neutral-700 rounded-lg text-white text-[10px] focus:outline-none focus:border-white transition-all font-bold [color-scheme:dark]"
+                            >
+                              <option value="">미지정</option>
+                              {projects.map((project) => (
+                                <option key={project.id} value={project.id}>
+                                  {project.name}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-6 py-4 text-center">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 ${editForm.type === "income" ? "bg-green-600/20 text-green-500" : "bg-red-600/20 text-red-500"} text-[10px] font-bold rounded-full border border-current opacity-60`}>
@@ -638,6 +714,9 @@ export function ExpenseTable({ hideHeader }: { hideHeader?: boolean }) {
                         <>
                           <td className="px-6 py-4 text-xs text-neutral-500 font-mono">{expense.date}</td>
                           <td className="px-6 py-4 text-xs text-white font-bold">{expense.item}</td>
+                          <td className="px-6 py-4 text-[10px] text-neutral-400 font-bold">
+                            {projects.find(p => p.id === expense.project_id)?.name || "-"}
+                          </td>
                           <td className="px-6 py-4 text-center">
                             {expense.type === "income" ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-green-500/10 text-green-500 text-[10px] font-black rounded-full border border-green-500/20">

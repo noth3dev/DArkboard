@@ -20,5 +20,6 @@ export type Expense = {
   type: "income" | "expense" // 수입/지출 구분
   user_id: string | null
   description: string | null // 세부 설명 추가
+  project_id: string | null
   created_at: string
 }
